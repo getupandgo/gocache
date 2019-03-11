@@ -1,8 +1,8 @@
-package main
+package server
 
 import (
 	"fmt"
-	"github.com/getupandgo/gocache/controllers"
+	"github.com/getupandgo/gocache/server/controllers"
 	"github.com/getupandgo/gocache/utils/cache"
 	"github.com/getupandgo/gocache/utils/config"
 	"github.com/gin-gonic/gin"

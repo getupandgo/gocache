@@ -11,8 +11,8 @@ type RedisClient struct {
 
 func (cc *RedisClient) Init(conf *viper.Viper) {
 	options := map[string]string{
-		"host": conf.GetString("cache.host"),
-		"port": conf.GetString("cache.port"),
+		"host": conf.GetString("redis.host"),
+		"port": conf.GetString("redis.port"),
 	}
 
 	cc.redisClient = redis.NewClient(&redis.Options{

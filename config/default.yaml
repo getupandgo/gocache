@@ -2,6 +2,7 @@ cache:
   max_count: 200
   max_item_size: 200
   max_size: 200
+  max_ttl: 200
 
 redis:
   host: localhost

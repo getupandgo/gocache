@@ -5,8 +5,9 @@ cache:
   max_ttl: 200
 
 redis:
-  host: localhost
-  port: 6379
+  host: 0.0.0.0
+  port: 32768
+  queueName: "pendingPages"
 
 server:
   port: 8080

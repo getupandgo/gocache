@@ -29,3 +29,18 @@ func TestPageUpsert(t *testing.T) {
 
 	assert.Equal(t, 200, response.Code, "Ok is expected")
 }
+
+func TestTopPages(t *testing.T) {
+	request, _ := http.NewRequest("GET", "/top", nil)
+	response := httptest.NewRecorder()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	cacheMock := cache_mock.NewMockCacheClient(ctrl)
+	cacheMock.EXPECT().GetTopPages()
+
+	controllers.InitRouter(cacheMock).ServeHTTP(response, request)
+
+	assert.Equal(t, 200, response.Code, "Ok is expected")
+}

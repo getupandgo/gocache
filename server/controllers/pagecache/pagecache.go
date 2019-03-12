@@ -51,7 +51,13 @@ func (ctrl *CacheController) DeletePage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) GetTopPages(c *gin.Context) {
+	err, top := ctrl.cacheClient.GetTopPages()
+	if err != nil {
+		c.Error(err)
+		return
+	}
 
+	c.JSON(http.StatusOK, top)
 }
 
 func getHTML(url string) (error, []byte) {

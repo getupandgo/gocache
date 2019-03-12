@@ -8,10 +8,12 @@ import (
 type (
 	CacheClient interface {
 		UpsertPage(pg *PageMsg) error
+		GetTopPages() (error, map[string]int64)
 	}
 
 	RedisClient struct {
-		redisClient *redis.Client
+		redisClient   *redis.Client
+		top_items_num int64
 	}
 
 	PageMsg struct {
@@ -31,7 +33,7 @@ func Init(conf *viper.Viper) CacheClient {
 		DB:   0,
 	})
 
-	return &RedisClient{redisClient}
+	return &RedisClient{redisClient, conf.GetInt64("app.top_items_num")}
 }
 
 func (cc *RedisClient) UpsertPage(pg *PageMsg) error {
@@ -54,4 +56,26 @@ func (cc *RedisClient) UpsertPage(pg *PageMsg) error {
 			})
 		return err
 	}, pg.URL)
+}
+
+func (cc *RedisClient) GetTopPages() (error, map[string]int64) {
+	res, err := cc.redisClient.ZRangeWithScores("hits", 0, cc.top_items_num).Result()
+	if err != nil {
+		return err, nil
+	}
+
+	return nil, ztoMap(&res)
+}
+
+func ztoMap(z *[]redis.Z) map[string]int64 {
+	zPages := *z
+	hitRate := make(map[string]int64, len(zPages))
+
+	for _, rtn := range zPages {
+		url := rtn.Member.(string)
+
+		hitRate[url] = int64(rtn.Score)
+	}
+
+	return hitRate
 }

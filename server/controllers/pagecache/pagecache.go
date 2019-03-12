@@ -11,11 +11,6 @@ type CacheController struct {
 	cacheClient cache.CacheClient
 }
 
-	RemovePageRequest struct {
-		Url string
-	}
-)
-
 func Init(cc cache.CacheClient) *CacheController {
 	return &CacheController{cc}
 }
@@ -32,13 +27,7 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 		return
 	}
 
-	err, content := getHTML(newPage.Url)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	if err := ctrl.cacheClient.UpsertPage(&cache.PageMsg{newPage.Url, string(content)}); err != nil {
+	if err := ctrl.cacheClient.UpsertPage(newPage); err != nil {
 		c.Error(err)
 		return
 	}
@@ -65,20 +54,4 @@ func (ctrl *CacheController) GetTopPages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, top)
-}
-
-func getHTML(url string) (error, []byte) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return err, nil
-	}
-
-	defer resp.Body.Close()
-
-	html, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err, nil
-	}
-
-	return nil, html
 }

@@ -15,11 +15,7 @@ type (
 	RedisClient struct {
 		redisClient   *redis.Client
 		top_items_num int64
-	}
-
-	PageMsg struct {
-		URL         string
-		PageContent string
+		ttl           int64
 	}
 )
 
@@ -34,10 +30,24 @@ func Init(conf *viper.Viper) CacheClient {
 		DB:   0,
 	})
 
-	return &RedisClient{redisClient, conf.GetInt64("app.top_items_num")}
+	limits := map[string]int64{
+		"top_items": conf.GetInt64("app.top_items_num"),
+		"ttl":       conf.GetInt64("app.ttl"),
+	}
+
+	return &RedisClient{redisClient, limits["top_items"], limits["ttl"]}
 }
 
-func (cc *RedisClient) UpsertPage(pg *PageMsg) error {
+func (cc *RedisClient) GetPage(url string) (string, error) {
+	content, err := cc.redisClient.HGet(url, "content").Result()
+	if err != nil {
+		return "", err
+	}
+
+	return content, nil
+}
+
+func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
 	return cc.redisClient.Watch(func(tx *redis.Tx) error {
 		_, err := tx.Pipelined(
 			func(pipe redis.Pipeliner) error {

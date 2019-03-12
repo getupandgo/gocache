@@ -2,15 +2,14 @@ package pagecache
 
 import (
 	"github.com/getupandgo/gocache/utils/cache"
+	"github.com/getupandgo/gocache/utils/structs"
 	"github.com/gin-gonic/gin"
-	"io/ioutil"
 	"net/http"
 )
 
-type (
-	CacheController struct {
-		cacheClient cache.CacheClient
-	}
+type CacheController struct {
+	cacheClient cache.CacheClient
+}
 
 	RemovePageRequest struct {
 		Url string
@@ -26,7 +25,7 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
-	newPage := &RemovePageRequest{}
+	newPage := &structs.Page{}
 
 	if err := c.BindJSON(newPage); err != nil {
 		c.Error(err)
@@ -48,7 +47,7 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) DeletePage(c *gin.Context) {
-	removePage := &RemovePageRequest{}
+	removePage := &structs.RemovePageBody{}
 
 	if err := c.BindJSON(removePage); err != nil {
 		c.Error(err)

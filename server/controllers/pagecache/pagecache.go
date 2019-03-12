@@ -16,7 +16,15 @@ func Init(cc cache.CacheClient) *CacheController {
 }
 
 func (ctrl *CacheController) GetPage(c *gin.Context) {
+	pg := c.Query("url")
 
+	cont, err := ctrl.cacheClient.GetPage(pg)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, cont)
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
@@ -47,7 +55,7 @@ func (ctrl *CacheController) DeletePage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) GetTopPages(c *gin.Context) {
-	err, top := ctrl.cacheClient.GetTopPages()
+	top, err := ctrl.cacheClient.GetTopPages()
 	if err != nil {
 		c.Error(err)
 		return

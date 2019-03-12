@@ -1,15 +1,17 @@
 package cache
 
 import (
+	"github.com/getupandgo/gocache/utils/structs"
 	"github.com/go-redis/redis"
 	"github.com/spf13/viper"
 )
 
 type (
 	CacheClient interface {
-		UpsertPage(pg *PageMsg) error
-		GetTopPages() (error, map[string]int64)
-		RemovePage(pageUrl string) error
+		GetPage(url string) (string, error)
+		UpsertPage(pg *structs.Page) error
+		RemovePage(url string) error
+		GetTopPages() (map[string]int64, error)
 	}
 
 	RedisClient struct {
@@ -51,47 +53,47 @@ func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
 	return cc.redisClient.Watch(func(tx *redis.Tx) error {
 		_, err := tx.Pipelined(
 			func(pipe redis.Pipeliner) error {
-				pipe.HSet(pg.URL, "content", pg.PageContent)
+				pipe.HSet(pg.Url, "content", pg.Content)
 
 				pipe.ZIncr("hits", redis.Z{
 					Score:  1,
-					Member: pg.URL,
+					Member: pg.Url,
 				})
 
 				pipe.ZIncr("ttl", redis.Z{
-					Score:  1,
-					Member: pg.URL,
+					Score:  float64(cc.ttl),
+					Member: pg.Url,
 				})
 
 				return nil
 			})
 		return err
-	}, pg.URL)
+	}, pg.Url)
 }
 
-func (cc *RedisClient) GetTopPages() (error, map[string]int64) {
+func (cc *RedisClient) GetTopPages() (map[string]int64, error) {
 	res, err := cc.redisClient.ZRangeWithScores("hits", 0, cc.top_items_num).Result()
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
-	return nil, ztoMap(&res)
+	return ztoMap(&res), nil
 }
 
-func (cc *RedisClient) RemovePage(pageUrl string) error {
+func (cc *RedisClient) RemovePage(url string) error {
 	return cc.redisClient.Watch(func(tx *redis.Tx) error {
 		_, err := tx.Pipelined(
 			func(pipe redis.Pipeliner) error {
-				pipe.HDel(pageUrl, "content")
+				pipe.HDel(url, "content")
 
-				pipe.ZRem("hits", pageUrl)
+				pipe.ZRem("hits", url)
 
-				pipe.ZRem("ttl", pageUrl)
+				pipe.ZRem("ttl", url)
 
 				return nil
 			})
 		return err
-	}, pageUrl)
+	}, url)
 }
 
 func ztoMap(z *[]redis.Z) map[string]int64 {

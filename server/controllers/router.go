@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func InitRouter(cc *cache.RedisClient) *gin.Engine {
+func InitRouter(cc cache.CacheClient) *gin.Engine {
 	cacheCtrl := pagecache.Init(cc)
 
 	r := gin.New()

@@ -6,17 +6,22 @@ import (
 	"net/http"
 )
 
-type CacheController struct {
-	cacheClient *cache.RedisClient
-}
+type (
+	CacheController struct {
+		cacheClient cache.CacheClient
+	}
 
-func Init(cc *cache.RedisClient) *CacheController {
+	SavePageRequest struct {
+		Url string
+	}
+)
+
+func Init(cc cache.CacheClient) *CacheController {
 	return &CacheController{cc}
 }
 
 func (ctrl *CacheController) GetPage(c *gin.Context) {
-	ctrl.cacheClient.Test()
-	c.String(http.StatusOK, "qwe")
+
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {

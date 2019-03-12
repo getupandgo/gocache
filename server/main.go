@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"fmt"
@@ -17,14 +17,13 @@ func main() {
 			Msg("Failed to get config file")
 	}
 
-	rd := cache.RedisClient{}
-	rd.Init(conf)
+	rd := cache.Init(conf)
 
 	if !conf.GetBool("http_debug") {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	r := controllers.InitRouter(&rd)
+	r := controllers.InitRouter(rd)
 
 	httpPort := conf.GetInt("server.port")
 

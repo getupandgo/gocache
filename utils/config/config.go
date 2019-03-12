@@ -6,7 +6,7 @@ import (
 
 const defaultConfigPath = "config"
 
-func GetConfig() (*viper.Viper, error) {
+func Get() (*viper.Viper, error) {
 	v := viper.New()
 
 	v.AutomaticEnv()

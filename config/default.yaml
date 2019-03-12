@@ -1,8 +1,9 @@
-cache:
-  max_count: 200
-  max_item_size: 200
-  max_size: 200
-  max_ttl: 200
+app:
+  page_size_limit: 200
+  page_num_limit: 200
+  cache_size_limit: 200
+  ttl: 200
+  top_items_num: 100
 
 redis:
   host: 0.0.0.0

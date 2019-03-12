@@ -9,6 +9,7 @@ type (
 	CacheClient interface {
 		UpsertPage(pg *PageMsg) error
 		GetTopPages() (error, map[string]int64)
+		RemovePage(pageUrl string) error
 	}
 
 	RedisClient struct {
@@ -65,6 +66,22 @@ func (cc *RedisClient) GetTopPages() (error, map[string]int64) {
 	}
 
 	return nil, ztoMap(&res)
+}
+
+func (cc *RedisClient) RemovePage(pageUrl string) error {
+	return cc.redisClient.Watch(func(tx *redis.Tx) error {
+		_, err := tx.Pipelined(
+			func(pipe redis.Pipeliner) error {
+				pipe.HDel(pageUrl, "content")
+
+				pipe.ZRem("hits", pageUrl)
+
+				pipe.ZRem("ttl", pageUrl)
+
+				return nil
+			})
+		return err
+	}, pageUrl)
 }
 
 func ztoMap(z *[]redis.Z) map[string]int64 {

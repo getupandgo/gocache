@@ -12,7 +12,7 @@ type (
 		cacheClient cache.CacheClient
 	}
 
-	SavePageRequest struct {
+	RemovePageRequest struct {
 		Url string
 	}
 )
@@ -26,28 +26,36 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
-	token := &SavePageRequest{}
+	newPage := &RemovePageRequest{}
 
-	if err := c.BindJSON(token); err != nil {
+	if err := c.BindJSON(newPage); err != nil {
 		c.Error(err)
 		return
 	}
 
-	err, content := getHTML(token.Url)
+	err, content := getHTML(newPage.Url)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	if err := ctrl.cacheClient.UpsertPage(&cache.PageMsg{token.Url, string(content)}); err != nil {
+	if err := ctrl.cacheClient.UpsertPage(&cache.PageMsg{newPage.Url, string(content)}); err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.String(http.StatusOK, token.Url)
+	c.String(http.StatusOK, newPage.Url)
 }
 
 func (ctrl *CacheController) DeletePage(c *gin.Context) {
+	removePage := &RemovePageRequest{}
+
+	if err := c.BindJSON(removePage); err != nil {
+		c.Error(err)
+		return
+	}
+
+	ctrl.cacheClient.RemovePage(removePage.Url)
 }
 
 func (ctrl *CacheController) GetTopPages(c *gin.Context) {

@@ -14,7 +14,7 @@ import (
 )
 
 func TestPageUpsert(t *testing.T) {
-	body, _ := json.Marshal(pagecache.SavePageRequest{"http://example.com"})
+	body, _ := json.Marshal(pagecache.RemovePageRequest{"http://example.com"})
 
 	request, _ := http.NewRequest("PUT", "/cache", bytes.NewBuffer(body))
 	response := httptest.NewRecorder()
@@ -39,6 +39,23 @@ func TestTopPages(t *testing.T) {
 
 	cacheMock := cache_mock.NewMockCacheClient(ctrl)
 	cacheMock.EXPECT().GetTopPages()
+
+	controllers.InitRouter(cacheMock).ServeHTTP(response, request)
+
+	assert.Equal(t, 200, response.Code, "Ok is expected")
+}
+
+func TestPageDeletion(t *testing.T) {
+	body, _ := json.Marshal(pagecache.RemovePageRequest{"http://example.com"})
+
+	request, _ := http.NewRequest("DELETE", "/cache", bytes.NewBuffer(body))
+	response := httptest.NewRecorder()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	cacheMock := cache_mock.NewMockCacheClient(ctrl)
+	cacheMock.EXPECT().RemovePage(gomock.Any()).Return(nil)
 
 	controllers.InitRouter(cacheMock).ServeHTTP(response, request)
 

@@ -4,6 +4,8 @@ import (
 	"github.com/getupandgo/gocache/utils/cache"
 	"github.com/getupandgo/gocache/utils/structs"
 	"github.com/gin-gonic/gin"
+	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 )
 
@@ -28,19 +30,25 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
-	newPage := &structs.Page{}
-
-	if err := c.BindJSON(newPage); err != nil {
+	u := c.PostForm("url")
+	fh, err := c.FormFile("content")
+	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	if err := ctrl.cacheClient.UpsertPage(newPage); err != nil {
+	cont, err := ReadMultipart(fh)
+	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.String(http.StatusOK, newPage.Url)
+	if err := ctrl.cacheClient.UpsertPage(&structs.Page{u, cont}); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.String(http.StatusOK, u)
 }
 
 func (ctrl *CacheController) DeletePage(c *gin.Context) {
@@ -62,4 +70,19 @@ func (ctrl *CacheController) GetTopPages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, top)
+}
+
+func ReadMultipart(cont *multipart.FileHeader) ([]byte, error) {
+	src, err := cont.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer src.Close()
+
+	b, err := ioutil.ReadAll(src)
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }

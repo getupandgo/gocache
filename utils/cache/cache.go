@@ -8,7 +8,7 @@ import (
 
 type (
 	CacheClient interface {
-		GetPage(url string) (string, error)
+		GetPage(url string) ([]byte, error)
 		UpsertPage(pg *structs.Page) error
 		RemovePage(url string) error
 		GetTopPages() (map[string]int64, error)
@@ -40,10 +40,10 @@ func Init(conf *viper.Viper) CacheClient {
 	return &RedisClient{redisClient, limits["top_items"], limits["ttl"]}
 }
 
-func (cc *RedisClient) GetPage(url string) (string, error) {
-	content, err := cc.redisClient.HGet(url, "content").Result()
+func (cc *RedisClient) GetPage(url string) ([]byte, error) {
+	content, err := cc.redisClient.HGet(url, "content").Bytes()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return content, nil

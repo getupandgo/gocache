@@ -17,7 +17,12 @@ func main() {
 			Msg("Failed to get config file")
 	}
 
-	rd := cache.Init(conf)
+	rd, err := cache.Init(conf)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("Failed to init cache client")
+	}
 
 	if !conf.GetBool("http_debug") {
 		gin.SetMode(gin.ReleaseMode)

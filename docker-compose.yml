@@ -1,0 +1,26 @@
+version: '2'
+services:
+   
+    redis:
+      container_name: redis-pages
+      image: redis:latest
+      restart: always
+      ports:
+        - "6379:6379"
+
+    server:
+      build:
+        context: .
+        dockerfile: server/Dockerfile
+      restart: always
+      depends_on:
+        - redis
+      ports:
+        - "8000:8000"
+      volumes:
+        - ./config:/config
+      environment:
+        - DB_HOST=database
+        - DB_PORT=6379
+        - HTTP_PORT=8000
+        - GIN_MODE=release

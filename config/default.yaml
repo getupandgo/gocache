@@ -6,9 +6,9 @@ limits:
   ttl: 300
 
 redis:
-  host: 0.0.0.0
-  port: 32768
+  host: redis
+  port: 6379
   queueName: "pendingPages"
 
 server:
-  port: 8080
+  port: 8000

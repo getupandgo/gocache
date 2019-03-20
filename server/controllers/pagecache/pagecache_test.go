@@ -3,16 +3,17 @@ package pagecache_test
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/getupandgo/gocache/common/structs"
-	"github.com/getupandgo/gocache/mocks"
-	"github.com/getupandgo/gocache/server/controllers"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/getupandgo/gocache/common/structs"
+	"github.com/getupandgo/gocache/mocks"
+	"github.com/getupandgo/gocache/server/controllers"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 )
 
 func sampleMultipartReq(uri string) (*http.Request, error) {
@@ -28,6 +29,7 @@ func sampleMultipartReq(uri string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	part.Write(content)
 
 	_ = writer.WriteField("url", "/example/test")

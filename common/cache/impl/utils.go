@@ -2,6 +2,7 @@ package impl
 
 import (
 	"errors"
+
 	"github.com/go-redis/redis"
 )
 

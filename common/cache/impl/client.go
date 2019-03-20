@@ -1,13 +1,14 @@
 package impl
 
 import (
+	"sync"
+	"time"
+	"unsafe"
+
 	"github.com/getupandgo/gocache/common/structs"
 	"github.com/getupandgo/gocache/common/utils"
 	"github.com/go-redis/redis"
 	"github.com/spf13/viper"
-	"sync"
-	"time"
-	"unsafe"
 )
 
 type RedisClient struct {
@@ -77,22 +78,22 @@ func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
 	return cc.conn.Watch(func(tx *redis.Tx) error {
 		_, err := tx.Pipelined(
 			func(pipe redis.Pipeliner) error {
-				pipe.HSet(pg.Url, "content", pg.Content)
+				pipe.HSet(pg.URL, "content", pg.Content)
 
 				pipe.ZIncr("hits", redis.Z{
 					Score:  1,
-					Member: pg.Url,
+					Member: pg.URL,
 				})
 
 				pipe.ZIncr("ttl", redis.Z{
 					Score:  float64(ttl.Unix()),
-					Member: pg.Url,
+					Member: pg.URL,
 				})
 
 				return nil
 			})
 		return err
-	}, pg.Url)
+	}, pg.URL)
 }
 
 func (cc *RedisClient) GetTopPages() (map[int64]string, error) {

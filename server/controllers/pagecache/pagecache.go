@@ -1,12 +1,13 @@
 package pagecache
 
 import (
-	"github.com/getupandgo/gocache/common/cache"
-	"github.com/getupandgo/gocache/common/structs"
-	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+
+	"github.com/getupandgo/gocache/common/cache"
+	"github.com/getupandgo/gocache/common/structs"
+	"github.com/gin-gonic/gin"
 )
 
 type CacheController struct {
@@ -30,7 +31,7 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
-	pageUrl := c.PostForm("url")
+	pageURL := c.PostForm("url")
 	fh, err := c.FormFile("content")
 	if err != nil {
 		c.Error(err)
@@ -43,12 +44,12 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 		return
 	}
 
-	if err := ctrl.cacheClient.UpsertPage(&structs.Page{pageUrl, cont}); err != nil {
+	if err := ctrl.cacheClient.UpsertPage(&structs.Page{pageURL, cont}); err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.String(http.StatusOK, pageUrl)
+	c.String(http.StatusOK, pageURL)
 }
 
 func (ctrl *CacheController) DeletePage(c *gin.Context) {
@@ -59,7 +60,7 @@ func (ctrl *CacheController) DeletePage(c *gin.Context) {
 		return
 	}
 
-	ctrl.cacheClient.RemovePage(removePage.Url)
+	ctrl.cacheClient.RemovePage(removePage.URL)
 }
 
 func (ctrl *CacheController) GetTopPages(c *gin.Context) {

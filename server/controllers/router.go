@@ -27,4 +27,5 @@ func InitRouter(cc cache.CacheClient) *gin.Engine {
 	topRouter.GET("", cacheCtrl.GetTopPages)
 
 	return r
+
 }

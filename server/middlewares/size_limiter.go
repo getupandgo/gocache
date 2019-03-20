@@ -1,8 +1,9 @@
 package middlewares
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func RequestSizeLimiter(maxSize int64) gin.HandlerFunc {

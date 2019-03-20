@@ -1,8 +1,8 @@
 package impl
 
 import (
-	"github.com/getupandgo/gocache/common/config"
 	"github.com/getupandgo/gocache/common/structs"
+	"github.com/getupandgo/gocache/common/utils"
 	"github.com/go-redis/redis"
 	"github.com/spf13/viper"
 	"sync"
@@ -20,10 +20,10 @@ type RedisClient struct {
 	cpMtx *sync.Mutex
 }
 
-func Init(conf *viper.Viper) (*RedisClient, error) {
+func Init() (*RedisClient, error) {
 	opts := map[string]string{
-		"host": conf.GetString("redis.host"),
-		"port": conf.GetString("redis.port"),
+		"host": viper.GetString("redis.host"),
+		"port": viper.GetString("redis.port"),
 	}
 
 	redisClient := redis.NewClient(&redis.Options{
@@ -31,7 +31,7 @@ func Init(conf *viper.Viper) (*RedisClient, error) {
 		DB:   0,
 	})
 
-	limits, err := config.GetMapStringInt(conf, "limits")
+	limits, err := utils.GetMapStringInt("limits")
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,6 @@ package cache
 import (
 	"github.com/getupandgo/gocache/common/cache/impl"
 	"github.com/getupandgo/gocache/common/structs"
-	"github.com/spf13/viper"
 )
 
 type CacheClient interface {
@@ -14,6 +13,6 @@ type CacheClient interface {
 	RemoveExpiredRecords() (int64, error)
 }
 
-func Init(conf *viper.Viper) (CacheClient, error) {
-	return impl.Init(conf)
+func Init() (CacheClient, error) {
+	return impl.Init()
 }

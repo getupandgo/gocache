@@ -3,35 +3,30 @@ package main
 import (
 	"fmt"
 	"github.com/getupandgo/gocache/common/cache"
-	"github.com/getupandgo/gocache/common/config"
 	"github.com/getupandgo/gocache/common/utils"
 	"github.com/getupandgo/gocache/server/controllers"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 func main() {
-	conf, err := config.Get()
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Failed to get config file")
-	}
+	utils.ReadConfig()
 
-	rd, err := cache.Init(conf)
+	rd, err := cache.Init()
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Msg("Failed to init cache client")
 	}
 
-	if !conf.GetBool("http_debug") {
+	if !viper.GetBool("http_debug") {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	r := controllers.InitRouter(rd)
 
-	httpPort := conf.GetInt("server.port")
+	httpPort := viper.GetInt("server.port")
 
 	if err = r.Run(fmt.Sprintf(":%d", httpPort)); err != nil {
 		log.Fatal().

@@ -32,6 +32,11 @@ func Init() (*RedisClient, error) {
 		DB:   0,
 	})
 
+	_, err := redisClient.Ping().Result()
+	if err != nil {
+		return nil, err
+	}
+
 	limits, err := utils.GetMapStringInt("limits")
 	if err != nil {
 		return nil, err

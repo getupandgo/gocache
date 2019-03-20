@@ -11,6 +11,7 @@ type CacheClient interface {
 	UpsertPage(pg *structs.Page) error
 	RemovePage(url string) (int64, error)
 	GetTopPages() (map[int64]string, error)
+	RemoveExpiredRecords() (int64, error)
 }
 
 func Init(conf *viper.Viper) (CacheClient, error) {

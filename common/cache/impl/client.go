@@ -137,7 +137,7 @@ func (cc *RedisClient) syncCapacity() error {
 	return nil
 }
 
-func (cc *RedisClient) RemoveExpired() (int64, error) {
+func (cc *RedisClient) RemoveExpiredRecords() (int64, error) {
 	nowFromEpoch := time.Now().Unix()
 
 	pipe := cc.conn.TxPipeline()
@@ -167,7 +167,7 @@ func (cc *RedisClient) RemoveExpired() (int64, error) {
 }
 
 func (cc *RedisClient) evictRecords(sizeRequired int) error {
-	_, err := cc.RemoveExpired()
+	_, err := cc.RemoveExpiredRecords()
 	if err != nil {
 		return err
 	}

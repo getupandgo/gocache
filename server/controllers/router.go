@@ -1,9 +1,9 @@
 package controllers
 
 import (
+	"github.com/getupandgo/gocache/common/cache"
 	"github.com/getupandgo/gocache/server/controllers/pagecache"
 	"github.com/getupandgo/gocache/server/middlewares"
-	"github.com/getupandgo/gocache/utils/cache"
 	"github.com/gin-gonic/gin"
 )
 

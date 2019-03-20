@@ -1,8 +1,8 @@
 package pagecache
 
 import (
-	"github.com/getupandgo/gocache/utils/cache"
-	"github.com/getupandgo/gocache/utils/structs"
+	"github.com/getupandgo/gocache/common/cache"
+	"github.com/getupandgo/gocache/common/structs"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"mime/multipart"

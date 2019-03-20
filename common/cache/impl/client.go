@@ -1,9 +1,8 @@
-package cache
+package impl
 
 import (
-	"errors"
-	"github.com/getupandgo/gocache/utils/config"
-	"github.com/getupandgo/gocache/utils/structs"
+	"github.com/getupandgo/gocache/common/config"
+	"github.com/getupandgo/gocache/common/structs"
 	"github.com/go-redis/redis"
 	"github.com/spf13/viper"
 	"sync"
@@ -11,27 +10,17 @@ import (
 	"unsafe"
 )
 
-type (
-	CacheClient interface {
-		GetPage(url string) ([]byte, error)
-		UpsertPage(pg *structs.Page) error
-		RemovePage(url string) (int64, error)
-		GetTopPages() (map[int64]string, error)
-	}
+type RedisClient struct {
+	conn   *redis.Client
+	limits map[string]int
 
-	RedisClient struct {
-		conn   *redis.Client
-		limits map[string]int
+	recordsNum  int64
+	overallSize int64
 
-		recordsNum  int64
-		overallSize int64
+	cpMtx *sync.Mutex
+}
 
-		cpMtx *sync.Mutex
-	}
-)
-
-func Init(conf *viper.Viper) (CacheClient, error) {
-
+func Init(conf *viper.Viper) (*RedisClient, error) {
 	opts := map[string]string{
 		"host": conf.GetString("redis.host"),
 		"port": conf.GetString("redis.port"),
@@ -49,11 +38,8 @@ func Init(conf *viper.Viper) (CacheClient, error) {
 
 	rc := &RedisClient{redisClient, limits, 0, 0, &sync.Mutex{}}
 
-	if err := rc.syncCapacity(); err != nil {
-		return nil, err
-	}
-
 	return rc, nil
+
 }
 
 func (cc *RedisClient) GetPage(url string) ([]byte, error) {
@@ -230,34 +216,4 @@ func (cc *RedisClient) enoughCapacityForRecord(requiredSize int) bool {
 	maxSize := cc.overallSize+1 < int64(cc.limits["max_cache_size"]+requiredSize)
 
 	return maxSize || maxRecords
-}
-
-func resToMap(res interface{}) (map[string]interface{}, error) {
-	resSlice, ok := res.([]interface{})
-	if !ok {
-		return nil, errors.New("unsupportable value")
-	}
-
-	resMap := make(map[string]interface{})
-
-	for i := 0; i < len(resSlice); i += 2 {
-		k := resSlice[i].(string)
-
-		resMap[k] = resSlice[i+1]
-	}
-
-	return resMap, nil
-}
-
-func ztoMap(z *[]redis.Z) map[int64]string { //todo fixme
-	zPages := *z
-	hitRate := make(map[int64]string, len(zPages))
-
-	for _, rtn := range zPages {
-		url := rtn.Member.(string)
-
-		hitRate[int64(rtn.Score)] = url
-	}
-
-	return hitRate
 }

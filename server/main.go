@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/getupandgo/gocache/common/cache"
+	"github.com/getupandgo/gocache/common/config"
 	"github.com/getupandgo/gocache/server/controllers"
-	"github.com/getupandgo/gocache/utils/cache"
-	"github.com/getupandgo/gocache/utils/config"
+	"github.com/getupandgo/gocache/server/ttl_service"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 )

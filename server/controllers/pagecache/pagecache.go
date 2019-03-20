@@ -30,7 +30,7 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
-	u := c.PostForm("url")
+	pageUrl := c.PostForm("url")
 	fh, err := c.FormFile("content")
 	if err != nil {
 		c.Error(err)
@@ -43,12 +43,12 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 		return
 	}
 
-	if err := ctrl.cacheClient.UpsertPage(&structs.Page{u, cont}); err != nil {
+	if err := ctrl.cacheClient.UpsertPage(&structs.Page{pageUrl, cont}); err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.String(http.StatusOK, u)
+	c.String(http.StatusOK, pageUrl)
 }
 
 func (ctrl *CacheController) DeletePage(c *gin.Context) {

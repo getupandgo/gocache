@@ -3,29 +3,55 @@ package pagecache_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"github.com/getupandgo/gocache/common/structs"
 	"github.com/getupandgo/gocache/mocks"
 	"github.com/getupandgo/gocache/server/controllers"
-	"github.com/getupandgo/gocache/utils/structs"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestPageUpsert(t *testing.T) {
+func sampleMultipartReq(uri string) (*http.Request, error) {
 	content, err := ioutil.ReadFile("../../../mocks/Example Domain.html")
 	if err != nil {
-		assert.FailNow(t, err.Error())
+		return nil, err
 	}
 
-	fmt.Println([]byte(content))
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
 
-	body, _ := json.Marshal(structs.Page{"/example", content})
+	part, err := writer.CreateFormFile("content", "example_file_name")
+	if err != nil {
+		return nil, err
+	}
+	part.Write(content)
 
-	request, _ := http.NewRequest("PUT", "/cache", bytes.NewBuffer(body))
+	_ = writer.WriteField("url", "/example/test")
+
+	if err = writer.Close(); err != nil {
+		return nil, err
+	}
+
+	newReq, err := http.NewRequest("PUT", uri, body)
+	if err != nil {
+		return nil, err
+	}
+
+	newReq.Header.Add("Content-Type", writer.FormDataContentType())
+
+	return newReq, nil
+}
+
+func TestPageUpsert(t *testing.T) {
+	request, err := sampleMultipartReq("/cache")
+	if err != nil {
+		assert.Fail(t, err.Error())
+	}
+
 	response := httptest.NewRecorder()
 
 	ctrl := gomock.NewController(t)
@@ -39,7 +65,7 @@ func TestPageUpsert(t *testing.T) {
 	assert.Equal(t, 200, response.Code, "Ok is expected")
 }
 
-func TestTopPages(t *testing.T) {
+func TestTopPagesRetrieval(t *testing.T) {
 	request, _ := http.NewRequest("GET", "/top", nil)
 	response := httptest.NewRecorder()
 
@@ -64,7 +90,7 @@ func TestPageDeletion(t *testing.T) {
 	defer ctrl.Finish()
 
 	cacheMock := cache_mock.NewMockCacheClient(ctrl)
-	cacheMock.EXPECT().RemovePage(gomock.Any()).Return(nil)
+	cacheMock.EXPECT().RemovePage(gomock.Any()).Return(int64(0), nil)
 
 	controllers.InitRouter(cacheMock).ServeHTTP(response, request)
 

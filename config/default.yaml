@@ -1,9 +1,9 @@
-app:
-  page_size_limit: 200
-  page_num_limit: 200
-  cache_size_limit: 200
-  ttl: 200
-  top_items_num: 100
+limits:
+  max_record_size: 200
+  max_record_num: 200
+  max_cache_size: 200
+  top_records_num: 100
+  ttl: 300
 
 redis:
   host: 0.0.0.0

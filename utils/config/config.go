@@ -19,3 +19,14 @@ func Get() (*viper.Viper, error) {
 	}
 	return v, nil
 }
+
+func GetMapStringInt(v *viper.Viper, key string) (map[string]int, error) {
+	smap := v.GetStringMap(key)
+
+	var m = map[string]int{}
+
+	for k, val := range smap {
+		m[k] = val.(int)
+	}
+	return m, nil
+}

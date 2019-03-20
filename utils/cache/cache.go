@@ -1,27 +1,37 @@
 package cache
 
 import (
+	"errors"
+	"github.com/getupandgo/gocache/utils/config"
 	"github.com/getupandgo/gocache/utils/structs"
 	"github.com/go-redis/redis"
 	"github.com/spf13/viper"
+	"sync"
+	"time"
+	"unsafe"
 )
 
 type (
 	CacheClient interface {
 		GetPage(url string) ([]byte, error)
 		UpsertPage(pg *structs.Page) error
-		RemovePage(url string) error
-		GetTopPages() (map[string]int64, error)
+		RemovePage(url string) (int64, error)
+		GetTopPages() (map[int64]string, error)
 	}
 
 	RedisClient struct {
-		redisClient   *redis.Client
-		top_items_num int64
-		ttl           int64
+		conn   *redis.Client
+		limits map[string]int
+
+		recordsNum  int64
+		overallSize int64
+
+		cpMtx *sync.Mutex
 	}
 )
 
-func Init(conf *viper.Viper) CacheClient {
+func Init(conf *viper.Viper) (CacheClient, error) {
+
 	opts := map[string]string{
 		"host": conf.GetString("redis.host"),
 		"port": conf.GetString("redis.port"),
@@ -32,16 +42,34 @@ func Init(conf *viper.Viper) CacheClient {
 		DB:   0,
 	})
 
-	limits := map[string]int64{
-		"top_items": conf.GetInt64("app.top_items_num"),
-		"ttl":       conf.GetInt64("app.ttl"),
+	limits, err := config.GetMapStringInt(conf, "limits")
+	if err != nil {
+		return nil, err
 	}
 
-	return &RedisClient{redisClient, limits["top_items"], limits["ttl"]}
+	rc := &RedisClient{redisClient, limits, 0, 0, &sync.Mutex{}}
+
+	if err := rc.syncCapacity(); err != nil {
+		return nil, err
+	}
+
+	return rc, nil
 }
 
 func (cc *RedisClient) GetPage(url string) ([]byte, error) {
-	content, err := cc.redisClient.HGet(url, "content").Bytes()
+	pipe := cc.conn.TxPipeline()
+
+	pipe.ZIncr("hits", redis.Z{
+		Score:  1,
+		Member: url,
+	})
+
+	content, err := cc.conn.HGet(url, "content").Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = pipe.Exec()
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +78,17 @@ func (cc *RedisClient) GetPage(url string) ([]byte, error) {
 }
 
 func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
-	return cc.redisClient.Watch(func(tx *redis.Tx) error {
+	newRecSize := int(unsafe.Sizeof(&pg))
+
+	if !cc.enoughCapacityForRecord(newRecSize) {
+		if err := cc.evictRecords(newRecSize); err != nil {
+			return err
+		}
+	}
+
+	ttl := time.Now().Add(time.Second * time.Duration(cc.limits["ttl"]))
+
+	return cc.conn.Watch(func(tx *redis.Tx) error {
 		_, err := tx.Pipelined(
 			func(pipe redis.Pipeliner) error {
 				pipe.HSet(pg.Url, "content", pg.Content)
@@ -61,7 +99,7 @@ func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
 				})
 
 				pipe.ZIncr("ttl", redis.Z{
-					Score:  float64(cc.ttl),
+					Score:  float64(ttl.Unix()),
 					Member: pg.Url,
 				})
 
@@ -71,8 +109,10 @@ func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
 	}, pg.Url)
 }
 
-func (cc *RedisClient) GetTopPages() (map[string]int64, error) {
-	res, err := cc.redisClient.ZRangeWithScores("hits", 0, cc.top_items_num).Result()
+func (cc *RedisClient) GetTopPages() (map[int64]string, error) {
+	topPagesNum := int64(cc.limits["top_records_num"])
+
+	res, err := cc.conn.ZRevRangeWithScores("hits", 0, topPagesNum).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -80,30 +120,143 @@ func (cc *RedisClient) GetTopPages() (map[string]int64, error) {
 	return ztoMap(&res), nil
 }
 
-func (cc *RedisClient) RemovePage(url string) error {
-	return cc.redisClient.Watch(func(tx *redis.Tx) error {
-		_, err := tx.Pipelined(
-			func(pipe redis.Pipeliner) error {
-				pipe.HDel(url, "content")
+func (cc *RedisClient) RemovePage(url string) (int64, error) {
+	pipe := cc.conn.TxPipeline()
 
-				pipe.ZRem("hits", url)
+	pipe.HDel(url, "content")
+	pipe.ZRem("hits", url)
+	pipe.ZRem("ttl", url)
 
-				pipe.ZRem("ttl", url)
+	_, err := pipe.Exec()
+	if err != nil {
+		return 0, err
+	}
 
-				return nil
-			})
-		return err
-	}, url)
+	if err := cc.syncCapacity(); err != nil {
+		return 0, err
+	}
+
+	return 1, nil
 }
 
-func ztoMap(z *[]redis.Z) map[string]int64 {
+func (cc *RedisClient) syncCapacity() error {
+	res, err := cc.getMemStats()
+	if err != nil {
+		return err
+	}
+
+	cc.recordsNum = res["keys.count"].(int64)
+	cc.overallSize = res["total.allocated"].(int64)
+
+	return nil
+}
+
+func (cc *RedisClient) RemoveExpired() (int64, error) {
+	nowFromEpoch := time.Now().Unix()
+
+	pipe := cc.conn.TxPipeline()
+
+	sPages, err := pipe.ZRange("ttl", 0, nowFromEpoch).Result()
+	if err != nil {
+		return 0, err
+	}
+
+	for _, sPage := range sPages {
+		pipe.HDel(sPage, "content").Result()
+		pipe.ZRem("hits", sPage)
+		pipe.ZRem("ttl", sPage)
+	}
+
+	_, err = pipe.Exec()
+	if err != nil {
+		return 0, err
+	}
+
+	err = cc.syncCapacity()
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(len(sPages)), err
+}
+
+func (cc *RedisClient) evictRecords(sizeRequired int) error {
+	_, err := cc.RemoveExpired()
+	if err != nil {
+		return err
+	}
+
+	if !cc.enoughCapacityForRecord(sizeRequired) {
+		for !cc.enoughCapacityForRecord(sizeRequired) {
+			pipe := cc.conn.TxPipeline()
+
+			res, err := pipe.ZRangeWithScores("hits", 0, 1).Result()
+			if err != nil {
+				return err
+			}
+
+			page := res[2].Member.(string)
+
+			pipe.HDel(page, "content")
+			pipe.ZRem("hits", page)
+			pipe.ZRem("ttl", page)
+
+			_, err = pipe.Exec()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (cc *RedisClient) getMemStats() (map[string]interface{}, error) {
+	memst, err := cc.conn.Do("MEMORY", "STATS").Result()
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := resToMap(memst)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (cc *RedisClient) enoughCapacityForRecord(requiredSize int) bool {
+	maxRecords := cc.recordsNum+1 < int64(cc.limits["max_record_num"])
+	maxSize := cc.overallSize+1 < int64(cc.limits["max_cache_size"]+requiredSize)
+
+	return maxSize || maxRecords
+}
+
+func resToMap(res interface{}) (map[string]interface{}, error) {
+	resSlice, ok := res.([]interface{})
+	if !ok {
+		return nil, errors.New("unsupportable value")
+	}
+
+	resMap := make(map[string]interface{})
+
+	for i := 0; i < len(resSlice); i += 2 {
+		k := resSlice[i].(string)
+
+		resMap[k] = resSlice[i+1]
+	}
+
+	return resMap, nil
+}
+
+func ztoMap(z *[]redis.Z) map[int64]string { //todo fixme
 	zPages := *z
-	hitRate := make(map[string]int64, len(zPages))
+	hitRate := make(map[int64]string, len(zPages))
 
 	for _, rtn := range zPages {
 		url := rtn.Member.(string)
 
-		hitRate[url] = int64(rtn.Score)
+		hitRate[int64(rtn.Score)] = url
 	}
 
 	return hitRate

@@ -44,7 +44,9 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 		return
 	}
 
-	if err := ctrl.cacheClient.UpsertPage(&structs.Page{pageURL, cont}); err != nil {
+	totalDataSize := len(cont) + len(pageURL)
+
+	if err := ctrl.cacheClient.UpsertPage(&structs.Page{pageURL, cont, totalDataSize}); err != nil {
 		c.Error(err)
 		return
 	}
@@ -78,6 +80,7 @@ func ReadMultipart(cont *multipart.FileHeader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer src.Close()
 
 	b, err := ioutil.ReadAll(src)

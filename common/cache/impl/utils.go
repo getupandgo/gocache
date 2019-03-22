@@ -3,6 +3,8 @@ package impl
 import (
 	"errors"
 
+	"github.com/getupandgo/gocache/common/structs"
+
 	"github.com/go-redis/redis"
 )
 
@@ -23,14 +25,13 @@ func resToMap(res interface{}) (map[string]interface{}, error) {
 	return resMap, nil
 }
 
-func ztoMap(z *[]redis.Z) map[int64]string { //todo fixme
+func parseZ(z *[]redis.Z) []structs.ScoredPage {
 	zPages := *z
-	hitRate := make(map[int64]string, len(zPages))
+	hitRate := make([]structs.ScoredPage, len(zPages))
 
-	for _, rtn := range zPages {
-		url := rtn.Member.(string)
-
-		hitRate[int64(rtn.Score)] = url
+	for i, rtn := range zPages {
+		formattedPageRec := structs.ScoredPage{rtn.Member.(string), int(rtn.Score)}
+		hitRate[i] = formattedPageRec
 	}
 
 	return hitRate

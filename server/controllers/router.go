@@ -23,8 +23,7 @@ func InitRouter(cc cache.CacheClient) *gin.Engine {
 	cacheRouter.PUT("", cacheCtrl.UpsertPage)
 	cacheRouter.DELETE("", cacheCtrl.DeletePage)
 
-	topRouter := r.Group("/top")
-	topRouter.GET("", cacheCtrl.GetTopPages)
+	cacheRouter.GET("/top", cacheCtrl.GetTopPages)
 
 	return r
 

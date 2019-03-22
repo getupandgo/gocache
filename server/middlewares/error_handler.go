@@ -14,9 +14,9 @@ type Error struct {
 
 func AppErrorReporter() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// try
+
 		c.Next()
-		// catch
+
 		if err := c.Errors.Last(); err != nil {
 			var formattedError Error
 

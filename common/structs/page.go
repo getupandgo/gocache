@@ -2,8 +2,14 @@ package structs
 
 type (
 	Page struct {
-		URL     string "json:url"
-		Content []byte "json:content"
+		URL       string
+		Content   []byte
+		TotalSize int
+	}
+
+	ScoredPage struct {
+		URL  string
+		Hits int
 	}
 
 	RemovePageBody struct {

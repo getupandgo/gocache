@@ -109,64 +109,53 @@ func (cc *RedisClient) GetTopPages() ([]structs.ScoredPage, error) {
 	return parseZ(&res), nil
 }
 
-func (cc *RedisClient) RemovePage(url string) (int64, error) {
-	pipe := cc.conn.TxPipeline()
+func (cc *RedisClient) RemovePage(url string) (int, error) {
+	var memUsageRes *redis.IntCmd
 
-	pipe.HDel(url, "content")
-	pipe.ZRem("hits", url)
-	pipe.ZRem("ttl", url)
+	_, err := cc.conn.TxPipelined(
+		func(pipe redis.Pipeliner) error {
+			memUsageRes = pipe.MemoryUsage(url)
 
-	_, err := pipe.Exec()
+			pipe.HDel(url, "content")
+			pipe.ZRem("hits", url)
+			pipe.ZRem("ttl", url)
+
+			return nil
+		})
+
 	if err != nil {
 		return 0, err
 	}
 
-	if err := cc.syncCapacity(); err != nil {
-		return 0, err
-	}
+	bytesFreed, err := memUsageRes.Result()
 
-	return 1, nil
+	return int(bytesFreed), err
 }
 
-func (cc *RedisClient) syncCapacity() error {
-	res, err := cc.getMemStats()
-	if err != nil {
-		return err
-	}
-
-	cc.recordsNum = res["keys.count"].(int64)
-	cc.overallSize = res["total.allocated"].(int64)
-
-	return nil
-}
-
-func (cc *RedisClient) RemoveExpiredRecords() (int64, error) {
+func (cc *RedisClient) RemoveExpiredRecords() (int, error) {
 	nowFromEpoch := time.Now().Unix()
 
-	pipe := cc.conn.TxPipeline()
-
-	sPages, err := pipe.ZRange("ttl", 0, nowFromEpoch).Result()
+	sPages, err := cc.conn.ZRange("ttl", 0, nowFromEpoch).Result()
 	if err != nil {
 		return 0, err
 	}
+
+	var freedTotal int
 
 	for _, sPage := range sPages {
-		pipe.HDel(sPage, "content").Result()
-		pipe.ZRem("hits", sPage)
-		pipe.ZRem("ttl", sPage)
+		sizeFreed, err := cc.RemovePage(sPage)
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Msg("Failed to remove expired items")
+
+			continue
+		}
+
+		freedTotal += sizeFreed
 	}
 
-	_, err = pipe.Exec()
-	if err != nil {
-		return 0, err
-	}
-
-	err = cc.syncCapacity()
-	if err != nil {
-		return 0, err
-	}
-
-	return int64(len(sPages)), err
+	return freedTotal, err
 }
 
 func (cc *RedisClient) evictRecords(sizeRequired int) error {

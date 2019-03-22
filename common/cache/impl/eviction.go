@@ -2,25 +2,25 @@ package impl
 
 import "github.com/spf13/viper"
 
-func (cc *RedisClient) cleanCache(requiredSize int) error {
-	memFreed, err := cc.Expire()
+func (db *RedisClient) evict(requiredSize int) error {
+	memFreed, err := db.Expire()
 	if err != nil {
 		return err
 	}
 
-	recordsOverflow, sizeOverflow, err := cc.checkOverflow(requiredSize)
+	recordsOverflow, sizeOverflow, err := db.checkOverflow(requiredSize)
 
 	if sizeOverflow {
 		memToEvict := requiredSize - memFreed
 
-		err = cc.evictBySize(memToEvict)
+		err = db.evictBySize(memToEvict)
 		if err != nil {
 			return err
 		}
 	}
 
 	if recordsOverflow {
-		err = cc.evictByCapacity()
+		err = db.evictByCapacity()
 
 		if err != nil {
 			return err
@@ -30,8 +30,8 @@ func (cc *RedisClient) cleanCache(requiredSize int) error {
 	return nil
 }
 
-func (cc *RedisClient) evictBySize(sizeRequired int) error {
-	lowHitPages, err := cc.ZRange("hits", 0, -1).Result()
+func (db *RedisClient) evictBySize(sizeRequired int) error {
+	lowHitPages, err := db.ZRange("hits", 0, -1).Result()
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (cc *RedisClient) evictBySize(sizeRequired int) error {
 	for i := 0; sizeRequired > 0; i++ {
 		pURL := lowHitPages[i]
 
-		sizeFreed, err := cc.Remove(pURL)
+		sizeFreed, err := db.Remove(pURL)
 		if err != nil {
 			return err
 		}
@@ -50,27 +50,27 @@ func (cc *RedisClient) evictBySize(sizeRequired int) error {
 	return err
 }
 
-func (cc *RedisClient) evictByCapacity() error {
-	lowHitPages, err := cc.ZRange("hits", 0, -1).Result()
+func (db *RedisClient) evictByCapacity() error {
+	lowHitPages, err := db.ZRange("hits", 0, -1).Result()
 	if err != nil {
 		return err
 	}
 
 	pURL := lowHitPages[0]
 
-	_, err = cc.Remove(pURL)
+	_, err = db.Remove(pURL)
 
 	return err
 }
 
-func (cc *RedisClient) isOverflowed(requiredSize int) (bool, error) {
-	sizeOverflow, recordsOverflow, err := cc.checkOverflow(requiredSize)
+func (db *RedisClient) isOverflowed(requiredSize int) (bool, error) {
+	sizeOverflow, recordsOverflow, err := db.checkOverflow(requiredSize)
 
 	return sizeOverflow || recordsOverflow, err
 }
 
-func (cc *RedisClient) checkOverflow(requiredSize int) (bool, bool, error) {
-	res, err := cc.getRedisMemStats()
+func (db *RedisClient) checkOverflow(requiredSize int) (bool, bool, error) {
+	res, err := db.getTotalMemStats()
 	if err != nil {
 		return false, false, err
 	}
@@ -87,8 +87,8 @@ func (cc *RedisClient) checkOverflow(requiredSize int) (bool, bool, error) {
 	return recordsOverflow, sizeOverflow, nil
 }
 
-func (cc *RedisClient) getRedisMemStats() (map[string]interface{}, error) {
-	memst, err := cc.Do("MEMORY", "STATS").Result()
+func (db *RedisClient) getTotalMemStats() (map[string]interface{}, error) {
+	memst, err := db.Do("MEMORY", "STATS").Result()
 	if err != nil {
 		return nil, err
 	}

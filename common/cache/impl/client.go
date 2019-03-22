@@ -37,15 +37,15 @@ func Init() (*RedisClient, error) {
 
 }
 
-func (cc *RedisClient) Get(url string) ([]byte, error) {
-	pipe := cc.TxPipeline()
+func (db *RedisClient) Get(url string) ([]byte, error) {
+	pipe := db.TxPipeline()
 
 	pipe.ZIncr("hits", redis.Z{
 		Score:  1,
 		Member: url,
 	})
 
-	content, err := cc.HGet(url, "content").Bytes()
+	content, err := db.HGet(url, "content").Bytes()
 	if err != nil {
 		return nil, err
 	}
@@ -58,14 +58,14 @@ func (cc *RedisClient) Get(url string) ([]byte, error) {
 	return content, nil
 }
 
-func (cc *RedisClient) Upsert(pg *structs.Page) error {
-	isOverflowed, err := cc.isOverflowed(pg.TotalSize)
+func (db *RedisClient) Upsert(pg *structs.Page) error {
+	isOverflowed, err := db.isOverflowed(pg.TotalSize)
 	if err != nil {
 		return err
 	}
 
 	if isOverflowed {
-		err = cc.cleanCache(pg.TotalSize)
+		err = db.evict(pg.TotalSize)
 		if err != nil {
 			return err
 		}
@@ -78,9 +78,9 @@ func (cc *RedisClient) Upsert(pg *structs.Page) error {
 		Add(time.Second * time.Duration(defaultTTL)).
 		Unix()
 
-		//return cc.conn.Watch(func(tx *redis.Tx) error {
+		//return db.conn.Watch(func(tx *redis.Tx) error {
 		//	_, err := tx.Pipelined(
-	_, err = cc.Pipelined(
+	_, err = db.Pipelined(
 		func(pipe redis.Pipeliner) error {
 			pipe.HSet(pg.URL, "content", pg.Content)
 
@@ -100,10 +100,10 @@ func (cc *RedisClient) Upsert(pg *structs.Page) error {
 	//}, pg.URL)
 }
 
-func (cc *RedisClient) Top() ([]structs.ScoredPage, error) {
+func (db *RedisClient) Top() ([]structs.ScoredPage, error) {
 	topPagesNum := viper.GetInt64("limits.top_records_number")
 
-	res, err := cc.ZRevRangeWithScores("hits", 0, topPagesNum).Result()
+	res, err := db.ZRevRangeWithScores("hits", 0, topPagesNum).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -111,10 +111,10 @@ func (cc *RedisClient) Top() ([]structs.ScoredPage, error) {
 	return parseZ(&res), nil
 }
 
-func (cc *RedisClient) Remove(url string) (int, error) {
+func (db *RedisClient) Remove(url string) (int, error) {
 	var memUsageRes *redis.IntCmd
 
-	_, err := cc.TxPipelined(
+	_, err := db.TxPipelined(
 		func(pipe redis.Pipeliner) error {
 			memUsageRes = pipe.MemoryUsage(url)
 
@@ -134,10 +134,10 @@ func (cc *RedisClient) Remove(url string) (int, error) {
 	return int(bytesFreed), err
 }
 
-func (cc *RedisClient) Expire() (int, error) {
+func (db *RedisClient) Expire() (int, error) {
 	nowFromEpoch := time.Now().Unix()
 
-	sPages, err := cc.ZRange("ttl", 0, nowFromEpoch).Result()
+	sPages, err := db.ZRange("ttl", 0, nowFromEpoch).Result()
 	if err != nil {
 		return 0, err
 	}
@@ -145,7 +145,7 @@ func (cc *RedisClient) Expire() (int, error) {
 	var freedTotal int
 
 	for _, sPage := range sPages {
-		sizeFreed, err := cc.Remove(sPage)
+		sizeFreed, err := db.Remove(sPage)
 		if err != nil {
 			log.Warn().
 				Err(err).

@@ -3,22 +3,17 @@ package impl
 import (
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/getupandgo/gocache/common/structs"
-	"github.com/getupandgo/gocache/common/utils"
 	"github.com/go-redis/redis"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
 type RedisClient struct {
-	conn   *redis.Client
-	limits map[string]int
+	conn *redis.Client
 
-	recordsNum  int64
-	overallSize int64
-
-	cpMtx *sync.Mutex
+	sync.Mutex
 }
 
 func Init() (*RedisClient, error) {
@@ -37,12 +32,8 @@ func Init() (*RedisClient, error) {
 		return nil, err
 	}
 
-	limits, err := utils.GetMapStringInt("limits")
-	if err != nil {
-		return nil, err
-	}
-
-	rc := &RedisClient{redisClient, limits, 0, 0, &sync.Mutex{}}
+	rc := &RedisClient{}
+	rc.conn = redisClient
 
 	return rc, nil
 
@@ -78,38 +69,44 @@ func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
 		}
 	}
 
-	ttl := time.Now().Add(time.Second * time.Duration(cc.limits["ttl"]))
+	defaultTTL := viper.GetInt("limits.record.ttl")
 
-	return cc.conn.Watch(func(tx *redis.Tx) error {
-		_, err := tx.Pipelined(
-			func(pipe redis.Pipeliner) error {
-				pipe.HSet(pg.URL, "content", pg.Content)
+	TTLFromNow := time.
+		Now().
+		Add(time.Second * time.Duration(defaultTTL)).
+		Unix()
 
-				pipe.ZIncr("hits", redis.Z{
-					Score:  1,
-					Member: pg.URL,
-				})
+		//return cc.conn.Watch(func(tx *redis.Tx) error {
+		//	_, err := tx.Pipelined(
+	_, err = cc.conn.Pipelined(
+		func(pipe redis.Pipeliner) error {
+			pipe.HSet(pg.URL, "content", pg.Content)
 
-				pipe.ZIncr("ttl", redis.Z{
-					Score:  float64(ttl.Unix()),
-					Member: pg.URL,
-				})
-
-				return nil
+			pipe.ZIncr("hits", redis.Z{
+				Score:  1,
+				Member: pg.URL,
 			})
-		return err
-	}, pg.URL)
+
+			pipe.ZIncr("ttl", redis.Z{
+				Score:  float64(TTLFromNow),
+				Member: pg.URL,
+			})
+
+			return nil
+		})
+	return err
+	//}, pg.URL)
 }
 
-func (cc *RedisClient) GetTopPages() (map[int64]string, error) {
-	topPagesNum := int64(cc.limits["top_records_num"])
+func (cc *RedisClient) GetTopPages() ([]structs.ScoredPage, error) {
+	topPagesNum := viper.GetInt64("limits.top_records_number")
 
 	res, err := cc.conn.ZRevRangeWithScores("hits", 0, topPagesNum).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	return ztoMap(&res), nil
+	return parseZ(&res), nil
 }
 
 func (cc *RedisClient) RemovePage(url string) (int64, error) {
@@ -203,7 +200,64 @@ func (cc *RedisClient) evictRecords(sizeRequired int) error {
 	return nil
 }
 
-func (cc *RedisClient) getMemStats() (map[string]interface{}, error) {
+func (cc *RedisClient) evictBySize(sizeRequired int) error {
+	lowHitPages, err := cc.conn.ZRange("hits", 0, -1).Result()
+	if err != nil {
+		return err
+	}
+
+	for i := 0; sizeRequired > 0; i++ {
+		pURL := lowHitPages[i]
+
+		sizeFreed, err := cc.RemovePage(pURL)
+		if err != nil {
+			return err
+		}
+
+		sizeRequired -= sizeFreed
+	}
+
+	return err
+}
+
+func (cc *RedisClient) evictByCapacity() error {
+	lowHitPages, err := cc.conn.ZRange("hits", 0, -1).Result()
+	if err != nil {
+		return err
+	}
+
+	pURL := lowHitPages[0]
+
+	_, err = cc.RemovePage(pURL)
+
+	return err
+}
+
+func (cc *RedisClient) isOverflowed(requiredSize int) (bool, error) {
+	sizeOverflow, recordsOverflow, err := cc.checkOverflow(requiredSize)
+
+	return sizeOverflow || recordsOverflow, err
+}
+
+func (cc *RedisClient) checkOverflow(requiredSize int) (bool, bool, error) {
+	res, err := cc.getRedisMemStats()
+	if err != nil {
+		return false, false, err
+	}
+
+	currRecCount := res["keys.count"].(int64)
+	currSize := res["total.allocated"].(int64)
+
+	maxRecCount := viper.GetInt64("limits.record.max_number")
+	maxSize := viper.GetInt64("limits.max_size")
+
+	recordsOverflow := currRecCount+1 > maxRecCount+2
+	sizeOverflow := currSize+int64(requiredSize) > maxSize
+
+	return recordsOverflow, sizeOverflow, nil
+}
+
+func (cc *RedisClient) getRedisMemStats() (map[string]interface{}, error) {
 	memst, err := cc.conn.Do("MEMORY", "STATS").Result()
 	if err != nil {
 		return nil, err
@@ -215,11 +269,4 @@ func (cc *RedisClient) getMemStats() (map[string]interface{}, error) {
 	}
 
 	return res, nil
-}
-
-func (cc *RedisClient) enoughCapacityForRecord(requiredSize int) bool {
-	maxRecords := cc.recordsNum+1 < int64(cc.limits["max_record_num"])
-	maxSize := cc.overallSize+1 < int64(cc.limits["max_cache_size"]+requiredSize)
-
-	return maxSize || maxRecords
 }

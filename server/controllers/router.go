@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func InitRouter(cc cache.CacheClient) *gin.Engine {
+func InitRouter(cc cache.Page) *gin.Engine {
 	cacheCtrl := pagecache.Init(cc)
 
 	maxRecordSize := viper.GetInt64("limits.record.max_size")

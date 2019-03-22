@@ -5,14 +5,14 @@ import (
 	"github.com/getupandgo/gocache/common/structs"
 )
 
-type CacheClient interface {
-	GetPage(url string) ([]byte, error)
-	UpsertPage(pg *structs.Page) error
-	RemovePage(url string) (int, error)
-	GetTopPages() ([]structs.ScoredPage, error)
-	RemoveExpiredRecords() (int, error)
+type Page interface {
+	Get(url string) ([]byte, error)
+	Upsert(pg *structs.Page) error
+	Remove(url string) (int, error)
+	Top() ([]structs.ScoredPage, error)
+	Expire() (int, error)
 }
 
-func Init() (CacheClient, error) {
+func Init() (Page, error) {
 	return impl.Init()
 }

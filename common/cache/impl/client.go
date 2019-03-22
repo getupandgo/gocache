@@ -37,7 +37,7 @@ func Init() (*RedisClient, error) {
 
 }
 
-func (cc *RedisClient) GetPage(url string) ([]byte, error) {
+func (cc *RedisClient) Get(url string) ([]byte, error) {
 	pipe := cc.TxPipeline()
 
 	pipe.ZIncr("hits", redis.Z{
@@ -58,7 +58,7 @@ func (cc *RedisClient) GetPage(url string) ([]byte, error) {
 	return content, nil
 }
 
-func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
+func (cc *RedisClient) Upsert(pg *structs.Page) error {
 	isOverflowed, err := cc.isOverflowed(pg.TotalSize)
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
 	//}, pg.URL)
 }
 
-func (cc *RedisClient) GetTopPages() ([]structs.ScoredPage, error) {
+func (cc *RedisClient) Top() ([]structs.ScoredPage, error) {
 	topPagesNum := viper.GetInt64("limits.top_records_number")
 
 	res, err := cc.ZRevRangeWithScores("hits", 0, topPagesNum).Result()
@@ -111,7 +111,7 @@ func (cc *RedisClient) GetTopPages() ([]structs.ScoredPage, error) {
 	return parseZ(&res), nil
 }
 
-func (cc *RedisClient) RemovePage(url string) (int, error) {
+func (cc *RedisClient) Remove(url string) (int, error) {
 	var memUsageRes *redis.IntCmd
 
 	_, err := cc.TxPipelined(
@@ -134,7 +134,7 @@ func (cc *RedisClient) RemovePage(url string) (int, error) {
 	return int(bytesFreed), err
 }
 
-func (cc *RedisClient) RemoveExpiredRecords() (int, error) {
+func (cc *RedisClient) Expire() (int, error) {
 	nowFromEpoch := time.Now().Unix()
 
 	sPages, err := cc.ZRange("ttl", 0, nowFromEpoch).Result()
@@ -145,7 +145,7 @@ func (cc *RedisClient) RemoveExpiredRecords() (int, error) {
 	var freedTotal int
 
 	for _, sPage := range sPages {
-		sizeFreed, err := cc.RemovePage(sPage)
+		sizeFreed, err := cc.Remove(sPage)
 		if err != nil {
 			log.Warn().
 				Err(err).

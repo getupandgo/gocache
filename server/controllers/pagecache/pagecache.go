@@ -11,17 +11,17 @@ import (
 )
 
 type CacheController struct {
-	cacheClient cache.CacheClient
+	db cache.Page
 }
 
-func Init(cc cache.CacheClient) *CacheController {
+func Init(cc cache.Page) *CacheController {
 	return &CacheController{cc}
 }
 
 func (ctrl *CacheController) GetPage(c *gin.Context) {
 	pg := c.Query("url")
 
-	cont, err := ctrl.cacheClient.GetPage(pg)
+	cont, err := ctrl.db.Get(pg)
 	if err != nil {
 		c.Error(err)
 		return
@@ -46,7 +46,7 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 
 	totalDataSize := len(cont) + len(pageURL)
 
-	if err := ctrl.cacheClient.UpsertPage(&structs.Page{pageURL, cont, totalDataSize}); err != nil {
+	if err := ctrl.db.Upsert(&structs.Page{pageURL, cont, totalDataSize}); err != nil {
 		c.Error(err)
 		return
 	}
@@ -62,11 +62,18 @@ func (ctrl *CacheController) DeletePage(c *gin.Context) {
 		return
 	}
 
-	ctrl.cacheClient.RemovePage(removePage.URL)
+	_, err := ctrl.db.Remove(removePage.URL)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+
 }
 
 func (ctrl *CacheController) GetTopPages(c *gin.Context) {
-	top, err := ctrl.cacheClient.GetTopPages()
+	top, err := ctrl.db.Top()
 	if err != nil {
 		c.Error(err)
 		return

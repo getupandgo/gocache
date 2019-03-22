@@ -3,7 +3,7 @@ package impl
 import "github.com/spf13/viper"
 
 func (cc *RedisClient) cleanCache(requiredSize int) error {
-	memFreed, err := cc.RemoveExpiredRecords()
+	memFreed, err := cc.Expire()
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (cc *RedisClient) evictBySize(sizeRequired int) error {
 	for i := 0; sizeRequired > 0; i++ {
 		pURL := lowHitPages[i]
 
-		sizeFreed, err := cc.RemovePage(pURL)
+		sizeFreed, err := cc.Remove(pURL)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func (cc *RedisClient) evictByCapacity() error {
 
 	pURL := lowHitPages[0]
 
-	_, err = cc.RemovePage(pURL)
+	_, err = cc.Remove(pURL)
 
 	return err
 }

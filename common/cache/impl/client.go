@@ -61,10 +61,14 @@ func (cc *RedisClient) GetPage(url string) ([]byte, error) {
 }
 
 func (cc *RedisClient) UpsertPage(pg *structs.Page) error {
-	newRecSize := int(unsafe.Sizeof(&pg))
+	isOverflowed, err := cc.isOverflowed(pg.TotalSize)
+	if err != nil {
+		return err
+	}
 
-	if !cc.enoughCapacityForRecord(newRecSize) {
-		if err := cc.evictRecords(newRecSize); err != nil {
+	if isOverflowed {
+		err = cc.cleanCache(pg.TotalSize)
+		if err != nil {
 			return err
 		}
 	}
@@ -158,31 +162,28 @@ func (cc *RedisClient) RemoveExpiredRecords() (int, error) {
 	return freedTotal, err
 }
 
-func (cc *RedisClient) evictRecords(sizeRequired int) error {
-	_, err := cc.RemoveExpiredRecords()
+func (cc *RedisClient) cleanCache(requiredSize int) error {
+	memFreed, err := cc.RemoveExpiredRecords()
 	if err != nil {
 		return err
 	}
 
-	if !cc.enoughCapacityForRecord(sizeRequired) {
-		for !cc.enoughCapacityForRecord(sizeRequired) {
-			pipe := cc.conn.TxPipeline()
+	recordsOverflow, sizeOverflow, err := cc.checkOverflow(requiredSize)
 
-			res, err := pipe.ZRangeWithScores("hits", 0, 1).Result()
-			if err != nil {
-				return err
-			}
+	if sizeOverflow {
+		memToEvict := requiredSize - memFreed
 
-			page := res[2].Member.(string)
+		err = cc.evictBySize(memToEvict)
+		if err != nil {
+			return err
+		}
+	}
 
-			pipe.HDel(page, "content")
-			pipe.ZRem("hits", page)
-			pipe.ZRem("ttl", page)
+	if recordsOverflow {
+		err = cc.evictByCapacity()
 
-			_, err = pipe.Exec()
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
 		}
 	}
 

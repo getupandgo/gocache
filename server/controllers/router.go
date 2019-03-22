@@ -11,12 +11,12 @@ import (
 func InitRouter(cc cache.CacheClient) *gin.Engine {
 	cacheCtrl := pagecache.Init(cc)
 
-	maxPageSize := viper.GetInt64("limits.max_record_size")
+	maxRecordSize := viper.GetInt64("limits.record.max_size")
 
 	r := gin.New()
 
 	r.Use(middlewares.AppErrorReporter())
-	r.Use(middlewares.RequestSizeLimiter(maxPageSize))
+	r.Use(middlewares.BodySizeLimiter(maxRecordSize))
 
 	cacheRouter := r.Group("/cache")
 	cacheRouter.GET("", cacheCtrl.GetPage)

@@ -6,10 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RequestSizeLimiter(maxSize int64) gin.HandlerFunc {
+func BodySizeLimiter(maxRecordSize int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSize)
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxRecordSize)
 
 		c.Next()
 	}

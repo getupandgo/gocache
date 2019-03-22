@@ -1,9 +1,10 @@
 limits:
-  max_record_size: 200
-  max_record_num: 200
-  max_cache_size: 200
-  top_records_num: 100
-  ttl: 300
+  record:
+    max_size: 20480000
+    max_number: 3
+    ttl: 0
+  max_size: 20480000
+  top_records_number: 100
 
 redis:
   host: redis

@@ -38,15 +38,19 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 		return
 	}
 
-	cont, err := ReadMultipart(fh)
+	content, err := ReadMultipart(fh)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	totalDataSize := len(cont) + len(pageURL)
+	totalDataSize := len(content) + len(pageURL)
 
-	if err := ctrl.db.Upsert(&structs.Page{pageURL, cont, totalDataSize}); err != nil {
+	_, err = ctrl.db.Upsert(
+		&structs.Page{
+			pageURL, content, totalDataSize,
+		})
+	if err != nil {
 		c.Error(err)
 		return
 	}
@@ -55,20 +59,20 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) DeletePage(c *gin.Context) {
-	removePage := &structs.RemovePageBody{}
+	pageToRemove := &structs.RemovePageBody{}
 
-	if err := c.BindJSON(removePage); err != nil {
+	if err := c.BindJSON(pageToRemove); err != nil {
 		c.Error(err)
 		return
 	}
 
-	_, err := ctrl.db.Remove(removePage.URL)
+	_, err := ctrl.db.Remove(pageToRemove.URL)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.String(http.StatusOK, pageToRemove.URL)
 
 }
 

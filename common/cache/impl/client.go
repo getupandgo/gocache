@@ -56,16 +56,16 @@ func (db *RedisClient) Get(url string) ([]byte, error) {
 	return content, nil
 }
 
-func (db *RedisClient) Upsert(pg *structs.Page) error {
+func (db *RedisClient) Upsert(pg *structs.Page) (bool, error) {
 	isOverflowed, err := db.isOverflowed(pg.TotalSize)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if isOverflowed {
 		err = db.evict(pg.TotalSize)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
@@ -78,7 +78,7 @@ func (db *RedisClient) Upsert(pg *structs.Page) error {
 
 		//return db.conn.Watch(func(tx *redis.Tx) error {
 		//	_, err := tx.Pipelined(
-	_, err = db.Pipelined(
+	insRes, err := db.Pipelined(
 		func(pipe redis.Pipeliner) error {
 			pipe.HSet(pg.URL, "content", pg.Content)
 
@@ -87,14 +87,17 @@ func (db *RedisClient) Upsert(pg *structs.Page) error {
 				Member: pg.URL,
 			})
 
-			pipe.ZIncr("ttl", redis.Z{
+			pipe.ZAdd("ttl", redis.Z{
 				Score:  float64(TTLFromNow),
 				Member: pg.URL,
 			})
 
 			return nil
 		})
-	return err
+
+	hSetExecComm := insRes[0].(*redis.BoolCmd)
+
+	return hSetExecComm.Result()
 	//}, pg.URL)
 }
 

@@ -7,7 +7,7 @@ import (
 
 type Page interface {
 	Get(url string) ([]byte, error)
-	Upsert(pg *structs.Page) error
+	Upsert(pg *structs.Page) (bool, error)
 	Remove(url string) (int, error)
 	Top() ([]structs.ScoredPage, error)
 	Expire() (int, error)

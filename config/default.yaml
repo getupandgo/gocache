@@ -3,6 +3,7 @@ limits:
     max_size: 20480000
     max_number: 3
     ttl: 0
+  expire_interval: 0
   max_size: 20480000
   top_records_number: 100
 

@@ -17,14 +17,12 @@ type RedisClient struct {
 }
 
 func Init() (*RedisClient, error) {
-	opts := map[string]string{
-		"host": viper.GetString("redis.host"),
-		"port": viper.GetString("redis.port"),
-	}
+	host := viper.GetString("redis.host")
+	port := viper.GetString("redis.port")
 
 	rc := &RedisClient{}
 	rc.Client = redis.NewClient(&redis.Options{
-		Addr: opts["host"] + ":" + opts["port"],
+		Addr: host + ":" + port,
 		DB:   0,
 	})
 

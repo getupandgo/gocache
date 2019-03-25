@@ -115,24 +115,45 @@ func (db *RedisClient) Top() ([]structs.ScoredPage, error) {
 }
 
 func (db *RedisClient) Remove(url string) (int, error) {
-	var memUsageRes *redis.IntCmd
+	var memoryUsageCommand *redis.IntCmd
+	var removePage func(string) error
 
-	_, err := db.TxPipelined(
-		func(pipe redis.Pipeliner) error {
-			memUsageRes = pipe.MemoryUsage(url)
+	removePage = func(url string) error {
+		removeTx := func(tx *redis.Tx) error {
+			_, err := tx.Pipelined(
+				func(pipe redis.Pipeliner) error {
+					memoryUsageCommand = pipe.MemoryUsage(url)
 
-			pipe.HDel(url, "content")
-			pipe.ZRem("hits", url)
-			pipe.ZRem("ttl", url)
+					pipe.HDel(url, "content")
+					pipe.ZRem("hits", url)
+					pipe.ZRem("ttl", url)
 
-			return nil
-		})
+					return nil
 
+				})
+
+			return err
+		}
+
+		err := db.Watch(removeTx, url)
+
+		if err == redis.TxFailedErr {
+			log.Warn().
+				Err(err).
+				Msg("Failed to remove page with url " + url + ", retry")
+
+			return removePage(url)
+		}
+
+		return err
+	}
+
+	err := removePage(url)
 	if err != nil {
 		return 0, err
 	}
 
-	bytesFreed, err := memUsageRes.Result()
+	bytesFreed, err := memoryUsageCommand.Result()
 
 	return int(bytesFreed), err
 }

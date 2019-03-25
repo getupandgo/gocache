@@ -6,7 +6,7 @@ limits:
   max_size: 20480000
 
 cache:
-  ttl_eviction_interval: 0
+  ttl_eviction_interval: "30m"
   top_records_number: 100
 
 redis:

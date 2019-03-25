@@ -104,14 +104,14 @@ func (db *RedisClient) Upsert(pg *structs.Page) (bool, error) {
 }
 
 func (db *RedisClient) Top() ([]structs.ScoredPage, error) {
-	topPagesNum := viper.GetInt64("limits.top_records_number")
+	topPagesNum := viper.GetInt64("cache.top_records_number")
 
-	res, err := db.ZRevRangeWithScores("hits", 0, topPagesNum).Result()
+	topPages, err := db.ZRevRangeWithScores("hits", 0, topPagesNum-1).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	return parseZ(&res), nil
+	return parseZ(&topPages), nil
 }
 
 func (db *RedisClient) Remove(url string) (int, error) {

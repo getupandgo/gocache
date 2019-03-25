@@ -9,7 +9,8 @@ import (
 )
 
 func WatchExpiredRecords(cc cache.Page) error {
-	ticker := time.NewTicker(1 * time.Second)
+	pollInterv := viper.GetInt64("cache.ttl_eviction_interval")
+	ticker := time.NewTicker(time.Duration(pollInterv))
 
 	go func() {
 		for t := range ticker.C {
@@ -23,9 +24,7 @@ func WatchExpiredRecords(cc cache.Page) error {
 		}
 	}()
 
-	pollInterv := viper.GetInt64("limits.expire_interval")
 	time.Sleep(10 * time.Duration(pollInterv))
-	ticker.Stop()
 
 	return nil
 }

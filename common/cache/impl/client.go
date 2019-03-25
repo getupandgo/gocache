@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"sync"
+	"strconv"
 	"time"
 
 	"github.com/getupandgo/gocache/common/structs"
@@ -12,8 +12,6 @@ import (
 
 type RedisClient struct {
 	*redis.Client
-
-	sync.Mutex
 }
 
 func Init() (*RedisClient, error) {
@@ -57,48 +55,52 @@ func (db *RedisClient) Get(url string) ([]byte, error) {
 }
 
 func (db *RedisClient) Upsert(pg *structs.Page) (bool, error) {
-	isOverflowed, err := db.isOverflowed(pg.TotalSize)
+	err := db.evictIfFull(pg.TotalSize)
+
+	var setCommand *redis.BoolCmd
+	var upsertPage func(string) error
+
+	upsertPage = func(url string) error {
+		upsertTx := func(tx *redis.Tx) error {
+			_, err = tx.Pipelined(
+				func(pipe redis.Pipeliner) error {
+					setCommand = pipe.HSet(pg.URL, "content", pg.Content)
+
+					pipe.ZIncr("hits", redis.Z{
+						Score:  1,
+						Member: pg.URL,
+					})
+
+					pipe.ZAdd("ttl", redis.Z{
+						Score:  float64(pg.TTL),
+						Member: pg.URL,
+					})
+
+					return err
+				})
+
+			return err
+		}
+
+		err := db.Watch(upsertTx, url)
+
+		if err == redis.TxFailedErr {
+			log.Warn().
+				Err(err).
+				Msg("Failed to insert page with url " + url + ", retry")
+
+			return upsertPage(url)
+		}
+
+		return err
+	}
+
+	err = upsertPage(pg.URL)
 	if err != nil {
 		return false, err
 	}
 
-	if isOverflowed {
-		err = db.evict(pg.TotalSize)
-		if err != nil {
-			return false, err
-		}
-	}
-
-	defaultTTL := viper.GetInt("limits.record.ttl")
-
-	TTLFromNow := time.
-		Now().
-		Add(time.Second * time.Duration(defaultTTL)).
-		Unix()
-
-		//return db.conn.Watch(func(tx *redis.Tx) error {
-		//	_, err := tx.Pipelined(
-	insRes, err := db.Pipelined(
-		func(pipe redis.Pipeliner) error {
-			pipe.HSet(pg.URL, "content", pg.Content)
-
-			pipe.ZIncr("hits", redis.Z{
-				Score:  1,
-				Member: pg.URL,
-			})
-
-			pipe.ZAdd("ttl", redis.Z{
-				Score:  float64(TTLFromNow),
-				Member: pg.URL,
-			})
-
-			return nil
-		})
-
-	hSetExecComm := insRes[0].(*redis.BoolCmd)
-
-	return hSetExecComm.Result()
-	//}, pg.URL)
+	return setCommand.Result()
 }
 
 func (db *RedisClient) Top() ([]structs.ScoredPage, error) {

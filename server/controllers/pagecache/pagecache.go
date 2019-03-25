@@ -4,6 +4,9 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"strconv"
+
+	"github.com/getupandgo/gocache/common/utils"
 
 	"github.com/getupandgo/gocache/common/cache"
 	"github.com/getupandgo/gocache/common/structs"
@@ -31,7 +34,22 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
-	pageURL := c.PostForm("url")
+	pageURL, present := c.GetPostForm("url")
+	if !present {
+		//c.Error(err)
+		return
+	}
+
+	reqTTL, present := c.GetPostForm("ttl")
+	var pageTTL int64
+	var err error
+
+	if !present || reqTTL == "" {
+		pageTTL, err = utils.CalculateTTLFromNow()
+	} else {
+		pageTTL, err = strconv.ParseInt(reqTTL, 10, 64)
+	}
+
 	fh, err := c.FormFile("content")
 	if err != nil {
 		c.Error(err)
@@ -48,7 +66,7 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 
 	_, err = ctrl.db.Upsert(
 		&structs.Page{
-			pageURL, content, totalDataSize,
+			pageURL, content, pageTTL, totalDataSize,
 		})
 	if err != nil {
 		c.Error(err)

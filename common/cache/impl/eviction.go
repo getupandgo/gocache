@@ -1,19 +1,41 @@
 package impl
 
-import "github.com/spf13/viper"
+import (
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
+)
 
-func (db *RedisClient) evict(requiredSize int) error {
-	memFreed, err := db.Expire()
+const SERVICE_FIELDS_COUNT = 2 // "ttl" and "hits" records in sorted set
+
+func (db *RedisClient) evictIfFull(recordSize int) error {
+	recordsOverflow, sizeOverflow, err := db.isOverflowed(recordSize)
 	if err != nil {
 		return err
 	}
 
-	recordsOverflow, sizeOverflow, err := db.checkOverflow(requiredSize)
+	isFull := recordsOverflow || sizeOverflow
+	if !isFull {
+		return nil
+	}
+
+	_, err = db.Expire()
+	if err != nil {
+		return err
+	}
+
+	recordsOverflow, sizeOverflow, err = db.isOverflowed(recordSize)
 
 	if sizeOverflow {
-		memToEvict := requiredSize - memFreed
+		maxCacheSize := viper.GetInt("limits.max_size")
 
-		err = db.evictBySize(memToEvict)
+		_, currCacheSize, err := db.getMemStats()
+		if err != nil {
+			return err
+		}
+
+		newCacheSize := recordSize + int(currCacheSize)
+
+		err = db.evictBySize(newCacheSize, maxCacheSize)
 		if err != nil {
 			return err
 		}
@@ -21,30 +43,43 @@ func (db *RedisClient) evict(requiredSize int) error {
 
 	if recordsOverflow {
 		err = db.evictByCapacity()
-
 		if err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return err
 }
 
-func (db *RedisClient) evictBySize(sizeRequired int) error {
+func (db *RedisClient) evictBySize(newCacheSize int, maxCacheSize int) error {
 	lowHitPages, err := db.ZRange("hits", 0, -1).Result()
 	if err != nil {
 		return err
 	}
 
-	for i := 0; sizeRequired > 0; i++ {
-		pURL := lowHitPages[i]
+	if len(lowHitPages) == 0 {
+		log.Warn().
+			Err(err).
+			Msg("Eviction by size - no items to evict")
 
-		sizeFreed, err := db.Remove(pURL)
+		return nil
+	}
+
+	for _, page := range lowHitPages {
+		sizeFreed, err := db.Remove(page)
 		if err != nil {
-			return err
+			log.Warn().
+				Err(err).
+				Msg("Eviction by size error")
+
+			continue
 		}
 
-		sizeRequired -= sizeFreed
+		newCacheSize -= sizeFreed
+
+		if newCacheSize < maxCacheSize {
+			return nil
+		}
 	}
 
 	return err
@@ -63,40 +98,34 @@ func (db *RedisClient) evictByCapacity() error {
 	return err
 }
 
-func (db *RedisClient) isOverflowed(requiredSize int) (bool, error) {
-	sizeOverflow, recordsOverflow, err := db.checkOverflow(requiredSize)
-
-	return sizeOverflow || recordsOverflow, err
-}
-
-func (db *RedisClient) checkOverflow(requiredSize int) (bool, bool, error) {
-	res, err := db.getTotalMemStats()
+func (db *RedisClient) isOverflowed(requiredSize int) (bool, bool, error) {
+	currRecCount, currSize, err := db.getMemStats()
 	if err != nil {
 		return false, false, err
+	}
+
+	maxRecCount := viper.GetInt64("limits.record.max_number")
+	maxSize := viper.GetInt64("limits.max_size")
+
+	recordsOverflow := currRecCount >= maxRecCount+SERVICE_FIELDS_COUNT
+	sizeOverflow := currSize+int64(requiredSize) >= maxSize
+
+	return recordsOverflow, sizeOverflow, nil
+}
+
+func (db *RedisClient) getMemStats() (int64, int64, error) {
+	memst, err := db.Do("MEMORY", "STATS").Result()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	res, err := resToMap(memst)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	currRecCount := res["keys.count"].(int64)
 	currSize := res["total.allocated"].(int64)
 
-	maxRecCount := viper.GetInt64("limits.record.max_number")
-	maxSize := viper.GetInt64("limits.max_size")
-
-	recordsOverflow := currRecCount+1 > maxRecCount+2
-	sizeOverflow := currSize+int64(requiredSize) > maxSize
-
-	return recordsOverflow, sizeOverflow, nil
-}
-
-func (db *RedisClient) getTotalMemStats() (map[string]interface{}, error) {
-	memst, err := db.Do("MEMORY", "STATS").Result()
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := resToMap(memst)
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return currRecCount, currSize, nil
 }

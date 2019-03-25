@@ -4,6 +4,7 @@ type (
 	Page struct {
 		URL       string
 		Content   []byte
+		TTL       int64
 		TotalSize int
 	}
 

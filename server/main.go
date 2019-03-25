@@ -25,21 +25,22 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	err = utils.WatchExpiredRecords(rd)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("Failed to start expiration watcher")
+	}
+
 	r := controllers.InitRouter(rd)
 
 	httpPort := viper.GetInt("server.port")
+
+	log.Info().Msgf("starting cache server on port %d", httpPort)
 
 	if err = r.Run(fmt.Sprintf(":%d", httpPort)); err != nil {
 		log.Fatal().
 			Err(err).
 			Msg("Failed to start server")
 	}
-
-	if err := utils.WatchExpiredRecords(rd); err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Failed to start expiration watcher")
-	}
-
-	log.Info().Msgf("starting cache server on port %d", httpPort)
 }

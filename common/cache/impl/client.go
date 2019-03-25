@@ -138,9 +138,13 @@ func (db *RedisClient) Remove(url string) (int, error) {
 }
 
 func (db *RedisClient) Expire() (int, error) {
-	nowFromEpoch := time.Now().Unix()
+	nowUnix := time.Now().Unix()
 
-	sPages, err := db.ZRange("ttl", 0, nowFromEpoch).Result()
+	sPages, err := db.ZRangeByScore("ttl", redis.ZRangeBy{
+		Min: "0",
+		Max: strconv.Itoa(int(nowUnix)),
+	}).Result()
+
 	if err != nil {
 		return 0, err
 	}

@@ -14,13 +14,10 @@ type RedisClient struct {
 	*redis.Client
 }
 
-func Init() (*RedisClient, error) {
-	host := viper.GetString("redis.host")
-	port := viper.GetString("redis.port")
-
+func Init(connString string) (*RedisClient, error) {
 	rc := &RedisClient{}
 	rc.Client = redis.NewClient(&redis.Options{
-		Addr: host + ":" + port,
+		Addr: connString,
 		DB:   0,
 	})
 

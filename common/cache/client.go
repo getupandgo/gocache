@@ -13,6 +13,6 @@ type Page interface {
 	Expire() (int, error)
 }
 
-func Init() (Page, error) {
-	return impl.Init()
+func Init(connString string) (Page, error) {
+	return impl.Init(connString)
 }

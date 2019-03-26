@@ -14,7 +14,10 @@ import (
 func main() {
 	utils.ReadConfig()
 
-	rd, err := cache.Init()
+	cacheHost := viper.GetString("redis.host")
+	cachePort := viper.GetString("redis.port")
+
+	rd, err := cache.Init(cacheHost + ":" + cachePort)
 	if err != nil {
 		log.Fatal().
 			Err(err).

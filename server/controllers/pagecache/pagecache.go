@@ -39,7 +39,7 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, cont)
+	c.JSON(http.StatusOK, string(cont))
 }
 
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {

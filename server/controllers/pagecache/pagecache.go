@@ -24,13 +24,17 @@ func Init(cc cache.Page) *CacheController {
 }
 
 func (ctrl *CacheController) GetPage(c *gin.Context) {
-	pg := c.Query("url")
+	pg, present := c.GetPostForm("url")
+	if !present {
+		c.JSON(http.StatusBadRequest, "No URL provided")
+		return
+	}
 
 	cont, err := ctrl.db.Get(pg)
 	if err == redis.Nil {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
-	} else {
+	} else if err != nil {
 		c.Error(err)
 		return
 	}

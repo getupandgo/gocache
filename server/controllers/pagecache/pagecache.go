@@ -1,6 +1,7 @@
 package pagecache
 
 import (
+	"errors"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -36,7 +37,7 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 	pageURL, present := c.GetPostForm("url")
 	if !present {
-		//c.Error(err)
+		c.Error(errors.New("No URL provided"))
 		return
 	}
 

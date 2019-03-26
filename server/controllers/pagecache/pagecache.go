@@ -1,11 +1,12 @@
 package pagecache
 
 import (
-	"errors"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"strconv"
+
+	"github.com/go-redis/redis"
 
 	"github.com/getupandgo/gocache/common/utils"
 
@@ -26,7 +27,10 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 	pg := c.Query("url")
 
 	cont, err := ctrl.db.Get(pg)
-	if err != nil {
+	if err == redis.Nil {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	} else {
 		c.Error(err)
 		return
 	}
@@ -37,7 +41,7 @@ func (ctrl *CacheController) GetPage(c *gin.Context) {
 func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 	pageURL, present := c.GetPostForm("url")
 	if !present {
-		c.Error(errors.New("No URL provided"))
+		c.JSON(http.StatusBadRequest, "No URL provided")
 		return
 	}
 
@@ -53,13 +57,13 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 
 	fh, err := c.FormFile("content")
 	if err != nil {
-		c.Error(err)
+		c.JSON(http.StatusBadRequest, "No content provided")
 		return
 	}
 
-	content, err := ReadMultipart(fh)
+	content, err := readMultipart(fh)
 	if err != nil {
-		c.Error(err)
+		c.JSON(http.StatusBadRequest, "Cannot read page content")
 		return
 	}
 
@@ -85,13 +89,16 @@ func (ctrl *CacheController) DeletePage(c *gin.Context) {
 		return
 	}
 
-	_, err := ctrl.db.Remove(pageToRemove.URL)
-	if err != nil {
+	bytesRemoved, err := ctrl.db.Remove(pageToRemove.URL)
+	if err == redis.Nil {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	} else if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.String(http.StatusOK, pageToRemove.URL)
+	c.JSON(http.StatusOK, bytesRemoved > 0)
 
 }
 
@@ -105,7 +112,7 @@ func (ctrl *CacheController) GetTopPages(c *gin.Context) {
 	c.JSON(http.StatusOK, top)
 }
 
-func ReadMultipart(cont *multipart.FileHeader) ([]byte, error) {
+func readMultipart(cont *multipart.FileHeader) ([]byte, error) {
 	src, err := cont.Open()
 	if err != nil {
 		return nil, err

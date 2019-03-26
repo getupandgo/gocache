@@ -2,7 +2,7 @@
 
 Check out deployed version on 
 
-http://34.65.220.116:8000/
+http://34.65.220.116:8000/cache/top
 
 or
 

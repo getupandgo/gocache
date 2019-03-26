@@ -17,22 +17,24 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const SERVICE_FIELDS_COUNT = 2 // "ttl" and "hits" records in sorted set
+const (
+	serviceFieldsCount = 2 // "ttl" and "hits" records in sorted set
+	redisConnString    = "0.0.0.0:32769"
+	itemsToInsert      = 100
+	testPageURL        = "/test/1"
+)
 
-var redisInstance *redis.Client
+var (
+	redisInstance *redis.Client
+	client        cache.Page
 
-var N = 100
-
-var examplePage = `<div>
+	samplePageContent = []byte(`<div>
     <h1>Example Domain</h1>
     <p>This domain is established to be used for illustrative examples in documents. You may use this
     domain in examples without prior coordination or asking for permission.</p>
     <p><a href="http://www.iana.org/domains/example">More information...</a></p>
-</div>`
-
-var samplePageContent = []byte(examplePage)
-
-var testPageURL = "/test/1"
+	</div>`)
+)
 
 func ReadConfig() {
 	viper.AutomaticEnv()
@@ -45,27 +47,6 @@ func ReadConfig() {
 			Err(err).
 			Msg("Failed to get config file")
 	}
-}
-
-func Init() (*impl.RedisClient, error) {
-	host := viper.GetString("redis.host")
-	port := viper.GetString("redis.port")
-
-	rc := &impl.RedisClient{}
-	rc.Client = redis.NewClient(&redis.Options{
-		Addr: host + ":" + port,
-		DB:   0,
-	})
-
-	redisInstance = rc.Client
-
-	_, err := rc.Ping().Result()
-	if err != nil {
-		return nil, err
-	}
-
-	return rc, nil
-
 }
 
 func populateSamplePage(url string) (structs.Page, error) {
@@ -81,21 +62,23 @@ func populateSamplePage(url string) (structs.Page, error) {
 }
 
 var _ = Describe("Client", func() {
-	var client cache.Page
-
 	BeforeEach(func() {
 		ReadConfig()
 
 		var err error
-		client, err = Init()
+		client, err = impl.Init(redisConnString)
+
+		redisInstance = redis.NewClient(&redis.Options{
+			Addr: redisConnString,
+			DB:   0,
+		})
+
 		Expect(client).NotTo(BeNil())
 		Expect(err).To(BeNil())
 	})
 
 	AfterEach(func() {
 		redisInstance.FlushAll()
-
-		ReadConfig()
 	})
 
 	It("must insert page to cache", func() {
@@ -112,7 +95,7 @@ var _ = Describe("Client", func() {
 	})
 
 	It("must insert N pages", func() {
-		for i := 0; i < N; i++ {
+		for i := 0; i < itemsToInsert; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
 			samplePage, err := populateSamplePage("/test/ins/" + strIdx)
 			if err != nil {
@@ -128,7 +111,7 @@ var _ = Describe("Client", func() {
 		rdContent, err := redisInstance.Keys("*").Result()
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(len(rdContent) - SERVICE_FIELDS_COUNT).To(Equal(N))
+		Expect(len(rdContent) - serviceFieldsCount).To(Equal(itemsToInsert))
 	})
 
 	It("must return page content", func() {
@@ -172,7 +155,7 @@ var _ = Describe("Client", func() {
 	})
 
 	It("must return top pages", func() {
-		for i := 0; i < N; i++ {
+		for i := 0; i < itemsToInsert; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
 			samplePage, err := populateSamplePage("/test/top/" + strIdx)
 			if err != nil {
@@ -232,14 +215,14 @@ var _ = Describe("Client", func() {
 
 		rdContent, err := redisInstance.Keys("*").Result()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(maxRecordLen).To(Equal(len(rdContent) - SERVICE_FIELDS_COUNT))
+		Expect(maxRecordLen).To(Equal(len(rdContent) - serviceFieldsCount))
 	})
 
 	It("must evict records by size limit", func() {
 		sampleSize := 2000000
 		viper.Set("limits.max_size", sampleSize)
 
-		for i := 0; i <= N; i++ {
+		for i := 0; i <= itemsToInsert; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
 			samplePage, err := populateSamplePage("/test/size/" + strIdx)
 			if err != nil {

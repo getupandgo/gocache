@@ -5,18 +5,15 @@ import (
 	"github.com/getupandgo/gocache/server/controllers/pagecache"
 	"github.com/getupandgo/gocache/server/middlewares"
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
 )
 
-func InitRouter(cc cache.Page) *gin.Engine {
+func InitRouter(cc cache.Page, maxRequestSize int64) *gin.Engine {
 	cacheCtrl := pagecache.Init(cc)
-
-	maxRecordSize := viper.GetInt64("limits.record.max_size")
 
 	r := gin.New()
 
 	r.Use(middlewares.AppErrorReporter())
-	r.Use(middlewares.BodySizeLimiter(maxRecordSize))
+	r.Use(middlewares.BodySizeLimiter(maxRequestSize))
 
 	cacheRouter := r.Group("/cache")
 	cacheRouter.GET("", cacheCtrl.GetPage)

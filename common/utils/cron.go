@@ -30,7 +30,5 @@ func WatchExpiredRecords(cc cache.Page) error {
 		}
 	}()
 
-	time.Sleep(10 * pollDuration)
-
 	return nil
 }

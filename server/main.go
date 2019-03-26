@@ -25,12 +25,12 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	//err = utils.WatchExpiredRecords(rd)
-	//if err != nil {
-	//	log.Fatal().
-	//		Err(err).
-	//		Msg("Failed to start expiration watcher")
-	//}
+	err = utils.WatchExpiredRecords(rd)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("Failed to start expiration watcher")
+	}
 
 	maxReqSize := viper.GetInt64("limits.record.max_size")
 	r := controllers.InitRouter(rd, maxReqSize)

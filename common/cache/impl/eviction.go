@@ -57,14 +57,6 @@ func (db *RedisClient) evictBySize(newCacheSize int, maxCacheSize int) error {
 		return err
 	}
 
-	if len(lowHitPages) == 0 {
-		log.Warn().
-			Err(err).
-			Msg("Eviction by size - no items to evict")
-
-		return nil
-	}
-
 	for _, page := range lowHitPages {
 		sizeFreed, err := db.Remove(page)
 		if err != nil {

@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var testRequestSize int64 = 20480000
+
 func sampleMultipartReq(uri string) (*http.Request, error) {
 	content, err := ioutil.ReadFile("../../../mocks/Example Domain.html")
 	if err != nil {
@@ -25,14 +27,23 @@ func sampleMultipartReq(uri string) (*http.Request, error) {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 
-	part, err := writer.CreateFormFile("content", "example_file_name")
+	urlField, err := writer.CreateFormField("url")
+	if err != nil {
+		return nil, err
+	}
+	_, err = urlField.Write([]byte("/example/test"))
 	if err != nil {
 		return nil, err
 	}
 
-	part.Write(content)
-
-	_ = writer.WriteField("url", "/example/test")
+	part, err := writer.CreateFormFile("content", "example_file_name")
+	if err != nil {
+		return nil, err
+	}
+	_, err = part.Write(content)
+	if err != nil {
+		return nil, err
+	}
 
 	if err = writer.Close(); err != nil {
 		return nil, err
@@ -59,25 +70,25 @@ func TestPageUpsert(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	cacheMock := cache_mock.NewMockCacheClient(ctrl)
-	cacheMock.EXPECT().UpsertPage(gomock.Any()).Return(nil)
+	cacheMock := cache_mock.NewMockPage(ctrl)
+	cacheMock.EXPECT().Upsert(gomock.Any()).Return(true, nil)
 
-	controllers.InitRouter(cacheMock).ServeHTTP(response, request)
+	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
 
 	assert.Equal(t, 200, response.Code, "Ok is expected")
 }
 
 func TestTopPagesRetrieval(t *testing.T) {
-	request, _ := http.NewRequest("GET", "/top", nil)
+	request, _ := http.NewRequest("GET", "/cache/top", nil)
 	response := httptest.NewRecorder()
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	cacheMock := cache_mock.NewMockCacheClient(ctrl)
-	cacheMock.EXPECT().GetTopPages()
+	cacheMock := cache_mock.NewMockPage(ctrl)
+	cacheMock.EXPECT().Top()
 
-	controllers.InitRouter(cacheMock).ServeHTTP(response, request)
+	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
 
 	assert.Equal(t, 200, response.Code, "Ok is expected")
 }
@@ -91,10 +102,10 @@ func TestPageDeletion(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	cacheMock := cache_mock.NewMockCacheClient(ctrl)
-	cacheMock.EXPECT().RemovePage(gomock.Any()).Return(int64(0), nil)
+	cacheMock := cache_mock.NewMockPage(ctrl)
+	cacheMock.EXPECT().Remove(gomock.Any()).Return(0, nil)
 
-	controllers.InitRouter(cacheMock).ServeHTTP(response, request)
+	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
 
 	assert.Equal(t, 200, response.Code, "Ok is expected")
 }

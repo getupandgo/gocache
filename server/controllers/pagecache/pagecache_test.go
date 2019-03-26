@@ -2,14 +2,14 @@ package pagecache_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
-	"github.com/getupandgo/gocache/common/structs"
 	"github.com/getupandgo/gocache/mocks"
 	"github.com/getupandgo/gocache/server/controllers"
 	"github.com/golang/mock/gomock"
@@ -60,7 +60,7 @@ func sampleMultipartReq(uri string) (*http.Request, error) {
 }
 
 func TestPageUpsert(t *testing.T) {
-	request, err := sampleMultipartReq("/cache")
+	request, err := sampleMultipartReq("/cache/upsert")
 	if err != nil {
 		assert.Fail(t, err.Error())
 	}
@@ -72,6 +72,26 @@ func TestPageUpsert(t *testing.T) {
 
 	cacheMock := cache_mock.NewMockPage(ctrl)
 	cacheMock.EXPECT().Upsert(gomock.Any()).Return(true, nil)
+
+	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+
+	assert.Equal(t, 200, response.Code, "Ok is expected")
+}
+
+func TestPageRetrieval(t *testing.T) {
+	values := url.Values{}
+	values.Add("url", "/example/test")
+
+	request, _ := http.NewRequest("POST", "/cache/get", strings.NewReader(values.Encode()))
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	response := httptest.NewRecorder()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	cacheMock := cache_mock.NewMockPage(ctrl)
+	cacheMock.EXPECT().Get(gomock.Any()).Return([]byte{}, nil)
 
 	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
 
@@ -94,9 +114,12 @@ func TestTopPagesRetrieval(t *testing.T) {
 }
 
 func TestPageDeletion(t *testing.T) {
-	body, _ := json.Marshal(structs.RemovePageBody{"/example"})
+	values := url.Values{}
+	values.Add("url", "/example/test")
 
-	request, _ := http.NewRequest("DELETE", "/cache", bytes.NewBuffer(body))
+	request, _ := http.NewRequest("POST", "/cache/delete", strings.NewReader(values.Encode()))
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
 	response := httptest.NewRecorder()
 
 	ctrl := gomock.NewController(t)

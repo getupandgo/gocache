@@ -1,3 +1,5 @@
+up:
+	docker-compose up --build
 redis-dev:
 	docker build -t redis-dev ./mocks/redis_dev_img
 	docker run -d -p 32769:6379 redis-dev

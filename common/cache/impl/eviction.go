@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const SERVICE_FIELDS_COUNT = 2 // "ttl" and "hits" records in sorted set
+const serviceFieldsCount = 2 // "ttl" and "hits" records in sorted set
 
 func (db *RedisClient) evictIfFull(recordSize int) error {
 	recordsOverflow, sizeOverflow, err := db.isOverflowed(recordSize)
@@ -107,7 +107,7 @@ func (db *RedisClient) isOverflowed(requiredSize int) (bool, bool, error) {
 	maxRecCount := viper.GetInt64("limits.record.max_number")
 	maxSize := viper.GetInt64("limits.max_size")
 
-	recordsOverflow := currRecCount >= maxRecCount+SERVICE_FIELDS_COUNT
+	recordsOverflow := currRecCount >= maxRecCount+serviceFieldsCount
 	sizeOverflow := currSize+int64(requiredSize) >= maxSize
 
 	return recordsOverflow, sizeOverflow, nil

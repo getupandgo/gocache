@@ -1,0 +1,291 @@
+{
+	"info": {
+		"_postman_id": "54476652-9dcb-47f3-9dee-d9b7ab49ee8a",
+		"name": "gocache",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "localhost:8000/cache",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "url",
+							"value": "/example/10",
+							"type": "text"
+						},
+						{
+							"key": "content",
+							"type": "file",
+							"src": ""
+						}
+					]
+				},
+				"url": {
+					"raw": "localhost:8000/cache",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"cache"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "34.65.220.116:8000/cache Prod",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "url",
+							"value": "/example/10",
+							"type": "text"
+						},
+						{
+							"key": "content",
+							"type": "file",
+							"src": ""
+						}
+					]
+				},
+				"url": {
+					"raw": "34.65.220.116:8000/cache",
+					"host": [
+						"34",
+						"65",
+						"220",
+						"116"
+					],
+					"port": "8000",
+					"path": [
+						"cache"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8000/cache",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "url",
+							"value": "/example/10",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "localhost:8000/cache",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"cache"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "34.65.220.116:8000/cache Prod",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "url",
+							"value": "/example/10",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "34.65.220.116:8000/cache",
+					"host": [
+						"34",
+						"65",
+						"220",
+						"116"
+					],
+					"port": "8000",
+					"path": [
+						"cache"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8000/cache/top",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "localhost:8000/cache/top",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"cache",
+						"top"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "34.65.220.116:8000/cache/top Prod",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "34.65.220.116:8000/cache/top",
+					"host": [
+						"34",
+						"65",
+						"220",
+						"116"
+					],
+					"port": "8000",
+					"path": [
+						"cache",
+						"top"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8000/cache",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"url\": \"/example/10\"\n}"
+				},
+				"url": {
+					"raw": "localhost:8000/cache",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"cache"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "34.65.220.116:8000/cache Prod",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"url\": \"/example/10\"\n}"
+				},
+				"url": {
+					"raw": "34.65.220.116:8000/cache",
+					"host": [
+						"34",
+						"65",
+						"220",
+						"116"
+					],
+					"port": "8000",
+					"path": [
+						"cache"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

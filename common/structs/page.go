@@ -12,8 +12,4 @@ type (
 		URL  string
 		Hits int
 	}
-
-	RemovePageBody struct {
-		URL string
-	}
 )

@@ -86,14 +86,13 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 }
 
 func (ctrl *CacheController) DeletePage(c *gin.Context) {
-	pageToRemove := &structs.RemovePageBody{}
-
-	if err := c.BindJSON(pageToRemove); err != nil {
-		c.Error(err)
+	pageURL, present := c.GetPostForm("url")
+	if !present {
+		c.JSON(http.StatusBadRequest, "No URL provided")
 		return
 	}
 
-	bytesRemoved, err := ctrl.db.Remove(pageToRemove.URL)
+	bytesRemoved, err := ctrl.db.Remove(pageURL)
 	if err == redis.Nil {
 		c.AbortWithStatus(http.StatusNotFound)
 		return

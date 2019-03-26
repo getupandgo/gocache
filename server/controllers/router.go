@@ -16,10 +16,9 @@ func InitRouter(cc cache.Page, maxRequestSize int64) *gin.Engine {
 	r.Use(middlewares.BodySizeLimiter(maxRequestSize))
 
 	cacheRouter := r.Group("/cache")
-	cacheRouter.POST("", cacheCtrl.GetPage)
-	cacheRouter.PUT("", cacheCtrl.UpsertPage)
-	cacheRouter.DELETE("", cacheCtrl.DeletePage)
-
+	cacheRouter.POST("/get", cacheCtrl.GetPage)
+	cacheRouter.PUT("/upsert", cacheCtrl.UpsertPage)
+	cacheRouter.POST("/delete", cacheCtrl.DeletePage)
 	cacheRouter.GET("/top", cacheCtrl.GetTopPages)
 
 	return r

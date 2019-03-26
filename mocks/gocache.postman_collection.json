@@ -6,7 +6,7 @@
 	},
 	"item": [
 		{
-			"name": "localhost:8000/cache",
+			"name": "upsert-dev",
 			"request": {
 				"method": "PUT",
 				"header": [
@@ -22,7 +22,7 @@
 					"formdata": [
 						{
 							"key": "url",
-							"value": "/example/10",
+							"value": "/example/1",
 							"type": "text"
 						},
 						{
@@ -33,20 +33,21 @@
 					]
 				},
 				"url": {
-					"raw": "localhost:8000/cache",
+					"raw": "localhost:8000/cache/upsert",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"cache"
+						"cache",
+						"upsert"
 					]
 				}
 			},
 			"response": []
 		},
 		{
-			"name": "34.65.220.116:8000/cache Prod",
+			"name": "upsert-prod",
 			"request": {
 				"method": "PUT",
 				"header": [
@@ -62,7 +63,7 @@
 					"formdata": [
 						{
 							"key": "url",
-							"value": "/example/10",
+							"value": "/example/1",
 							"type": "text"
 						},
 						{
@@ -73,7 +74,7 @@
 					]
 				},
 				"url": {
-					"raw": "34.65.220.116:8000/cache",
+					"raw": "34.65.220.116:8000/cache/upsert",
 					"host": [
 						"34",
 						"65",
@@ -82,71 +83,73 @@
 					],
 					"port": "8000",
 					"path": [
-						"cache"
+						"cache",
+						"upsert"
 					]
 				}
 			},
 			"response": []
 		},
 		{
-			"name": "localhost:8000/cache",
+			"name": "get-dev",
 			"request": {
 				"method": "POST",
 				"header": [
 					{
 						"key": "Content-Type",
 						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
 					}
 				],
 				"body": {
-					"mode": "formdata",
-					"formdata": [
+					"mode": "urlencoded",
+					"urlencoded": [
 						{
 							"key": "url",
-							"value": "/example/10",
+							"value": "/example/1",
 							"type": "text"
 						}
 					]
 				},
 				"url": {
-					"raw": "localhost:8000/cache",
+					"raw": "localhost:8000/cache/get",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"cache"
+						"cache",
+						"get"
 					]
 				}
 			},
 			"response": []
 		},
 		{
-			"name": "34.65.220.116:8000/cache Prod",
+			"name": "get-prod",
 			"request": {
 				"method": "POST",
 				"header": [
 					{
 						"key": "Content-Type",
 						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
 					}
 				],
 				"body": {
-					"mode": "formdata",
-					"formdata": [
+					"mode": "urlencoded",
+					"urlencoded": [
 						{
 							"key": "url",
-							"value": "/example/10",
+							"value": "/example/1",
 							"type": "text"
 						}
 					]
 				},
 				"url": {
-					"raw": "34.65.220.116:8000/cache",
+					"raw": "34.65.220.116:8000/cache/get",
 					"host": [
 						"34",
 						"65",
@@ -155,14 +158,15 @@
 					],
 					"port": "8000",
 					"path": [
-						"cache"
+						"cache",
+						"get"
 					]
 				}
 			},
 			"response": []
 		},
 		{
-			"name": "localhost:8000/cache/top",
+			"name": "top-dev",
 			"request": {
 				"method": "GET",
 				"header": [
@@ -193,16 +197,15 @@
 			"response": []
 		},
 		{
-			"name": "34.65.220.116:8000/cache/top Prod",
+			"name": "top-prod",
 			"request": {
 				"method": "GET",
 				"header": [
 					{
 						"key": "Content-Type",
 						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json",
-						"disabled": true
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
 					}
 				],
 				"body": {
@@ -227,52 +230,65 @@
 			"response": []
 		},
 		{
-			"name": "localhost:8000/cache",
+			"name": "delete-dev",
 			"request": {
-				"method": "DELETE",
+				"method": "POST",
 				"header": [
 					{
 						"key": "Content-Type",
 						"name": "Content-Type",
-						"value": "application/json",
+						"value": "application/x-www-form-urlencoded",
 						"type": "text"
 					}
 				],
 				"body": {
-					"mode": "raw",
-					"raw": "{\n\t\"url\": \"/example/10\"\n}"
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "url",
+							"value": "/example/1",
+							"type": "text"
+						}
+					]
 				},
 				"url": {
-					"raw": "localhost:8000/cache",
+					"raw": "localhost:8000/cache/delete",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"cache"
+						"cache",
+						"delete"
 					]
 				}
 			},
 			"response": []
 		},
 		{
-			"name": "34.65.220.116:8000/cache Prod",
+			"name": "delete-prod",
 			"request": {
-				"method": "DELETE",
+				"method": "POST",
 				"header": [
 					{
 						"key": "Content-Type",
 						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
 					}
 				],
 				"body": {
-					"mode": "raw",
-					"raw": "{\n\t\"url\": \"/example/10\"\n}"
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "url",
+							"value": "/example/10",
+							"type": "text"
+						}
+					]
 				},
 				"url": {
-					"raw": "34.65.220.116:8000/cache",
+					"raw": "34.65.220.116:8000/cache/delete",
 					"host": [
 						"34",
 						"65",
@@ -281,7 +297,8 @@
 					],
 					"port": "8000",
 					"path": [
-						"cache"
+						"cache",
+						"delete"
 					]
 				}
 			},

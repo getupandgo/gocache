@@ -20,6 +20,7 @@ import (
 const (
 	serviceFieldsCount = 2 // "ttl" and "hits" records in sorted set
 	itemsToInsert      = 100
+	redisDevConn       = "0.0.0.0:32769"
 	testPageURL        = "/test/1"
 )
 
@@ -66,13 +67,14 @@ var _ = Describe("Client", func() {
 	BeforeEach(func() {
 		ReadConfig()
 
-		DBConfig := utils.ReadDbOptions()
+		DBOptions := utils.ReadDbOptions()
+		DBOptions.Connection = redisDevConn
 
 		var err error
-		client, err = impl.Init(DBConfig)
+		client, err = impl.Init(DBOptions)
 
 		redisInstance = redis.NewClient(&redis.Options{
-			Addr: DBConfig.Connection,
+			Addr: DBOptions.Connection,
 			DB:   0,
 		})
 
@@ -201,6 +203,7 @@ var _ = Describe("Client", func() {
 
 	It("must evict records by len limit", func() {
 		DBOptions := utils.ReadDbOptions()
+		DBOptions.Connection = redisDevConn
 		DBOptions.MaxCount = 20
 
 		client, err := impl.Init(DBOptions)
@@ -231,6 +234,7 @@ var _ = Describe("Client", func() {
 
 	It("must evict records by size limit", func() {
 		DBOptions := utils.ReadDbOptions()
+		DBOptions.Connection = redisDevConn
 		DBOptions.MaxSize = 2000000
 
 		client, err := impl.Init(DBOptions)

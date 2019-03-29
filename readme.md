@@ -14,3 +14,11 @@ or
 **How to interact:**
 
 Sample requests to `gocache` are avialible in form of postman collection in `mocks` folder
+
+**How to run tests:**
+
+Tests depends on docker (for populating dev redis) and gomock. Commands below do all needed stuff and launching suite:
+
+`make redis-dev`
+
+`make test`

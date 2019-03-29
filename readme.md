@@ -1,10 +1,10 @@
 **Setup:**
 
-Check out deployed version on 
+Check out a deployed app on 
 
 http://34.65.220.116:8000/cache/top
 
-or
+or run locally via
 
 `git clone`
 
@@ -17,7 +17,7 @@ Sample requests to `gocache` are avialible in form of postman collection in `moc
 
 **How to run tests:**
 
-Tests depends on docker (for populating dev redis) and gomock. Commands below do all needed stuff and launching suite:
+Tests depend on docker (for populating dev-redis) and gomock. Commands below do all needed stuff and launching suite:
 
 `make redis-dev`
 

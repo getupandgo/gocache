@@ -14,10 +14,7 @@ import (
 func main() {
 	utils.ReadConfig()
 
-	cacheHost := viper.GetString("redis.host")
-	cachePort := viper.GetString("redis.port")
-
-	rd, err := cache.Init(cacheHost + ":" + cachePort)
+	rd, err := cache.Init(utils.ReadDbOptions())
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -26,13 +23,6 @@ func main() {
 
 	if !viper.GetBool("http_debug") {
 		gin.SetMode(gin.ReleaseMode)
-	}
-
-	err = utils.WatchExpiredRecords(rd)
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Failed to start expiration watcher")
 	}
 
 	maxReqSize := viper.GetInt64("limits.record.max_size")

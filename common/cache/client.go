@@ -3,6 +3,7 @@ package cache
 import (
 	"github.com/getupandgo/gocache/common/cache/impl"
 	"github.com/getupandgo/gocache/common/structs"
+	"github.com/getupandgo/gocache/common/utils"
 )
 
 type Page interface {
@@ -13,6 +14,6 @@ type Page interface {
 	Expire() (int, error)
 }
 
-func Init(connString string) (Page, error) {
-	return impl.Init(connString)
+func Init(options utils.DBOptions) (Page, error) {
+	return impl.Init(options)
 }

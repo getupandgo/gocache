@@ -1,8 +1,9 @@
 package impl
 
 import (
+	"time"
+
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
 const serviceFieldsCount = 2 // "ttl" and "hits" records in sorted set
@@ -26,7 +27,7 @@ func (db *RedisClient) evictIfFull(recordSize int) error {
 	recordsOverflow, sizeOverflow, err = db.isOverflowed(recordSize)
 
 	if sizeOverflow {
-		maxCacheSize := viper.GetInt("limits.max_size")
+		maxCacheSize := int(db.options.MaxSize)
 
 		_, currCacheSize, err := db.getMemStats()
 		if err != nil {
@@ -91,16 +92,16 @@ func (db *RedisClient) evictByCapacity() error {
 }
 
 func (db *RedisClient) isOverflowed(requiredSize int) (bool, bool, error) {
-	currRecCount, currSize, err := db.getMemStats()
+	currentRecCount, currSize, err := db.getMemStats()
 	if err != nil {
 		return false, false, err
 	}
 
-	maxRecCount := viper.GetInt64("limits.record.max_number")
-	maxSize := viper.GetInt64("limits.max_size")
+	maxRecords := db.options.MaxCount + serviceFieldsCount
+	newSize := currSize + int64(requiredSize)
 
-	recordsOverflow := currRecCount >= maxRecCount+serviceFieldsCount
-	sizeOverflow := currSize+int64(requiredSize) >= maxSize
+	recordsOverflow := currentRecCount >= maxRecords
+	sizeOverflow := newSize >= db.options.MaxSize
 
 	return recordsOverflow, sizeOverflow, nil
 }
@@ -120,4 +121,28 @@ func (db *RedisClient) getMemStats() (int64, int64, error) {
 	currSize := res["total.allocated"].(int64)
 
 	return currRecCount, currSize, nil
+}
+
+func (db *RedisClient) WatchExpiredRecords() error {
+	interval := db.options.ExpirationInterval
+	pollDuration, err := time.ParseDuration(interval)
+	if err != nil {
+		return err
+	}
+
+	ticker := time.NewTicker(pollDuration)
+
+	go func() {
+		for t := range ticker.C {
+			_ = t
+
+			if _, err := db.Expire(); err != nil {
+				log.Info().
+					Err(err).
+					Msg("Failed to delete expired records")
+			}
+		}
+	}()
+
+	return nil
 }

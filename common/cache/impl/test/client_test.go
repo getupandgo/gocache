@@ -19,7 +19,6 @@ import (
 
 const (
 	serviceFieldsCount = 2 // "ttl" and "hits" records in sorted set
-	redisConnString    = "0.0.0.0:32769"
 	itemsToInsert      = 100
 	testPageURL        = "/test/1"
 )
@@ -50,11 +49,13 @@ func ReadConfig() {
 }
 
 func populateSamplePage(url string) (structs.Page, error) {
-	defaultTLL, err := utils.CalculateTTLFromNow()
+	defaultTTL := viper.GetString("limits.record.ttl")
+	unixTTL, err := utils.CalculateTTLFromNow(defaultTTL)
+
 	page := structs.Page{
 		URL:       url,
 		Content:   samplePageContent,
-		TTL:       defaultTLL,
+		TTL:       unixTTL,
 		TotalSize: len(samplePageContent),
 	}
 
@@ -65,11 +66,13 @@ var _ = Describe("Client", func() {
 	BeforeEach(func() {
 		ReadConfig()
 
+		DBConfig := utils.ReadDbOptions()
+
 		var err error
-		client, err = impl.Init(redisConnString)
+		client, err = impl.Init(DBConfig)
 
 		redisInstance = redis.NewClient(&redis.Options{
-			Addr: redisConnString,
+			Addr: DBConfig.Connection,
 			DB:   0,
 		})
 
@@ -168,7 +171,7 @@ var _ = Describe("Client", func() {
 			}
 		}
 
-		topItemsNum := viper.GetInt("cache.top_records_number")
+		topItemsNum := viper.GetInt("cache.top_records_count")
 		for i := 0; i < topItemsNum; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
 			_, _ = client.Get("/test/top/" + strIdx)
@@ -197,8 +200,13 @@ var _ = Describe("Client", func() {
 	})
 
 	It("must evict records by len limit", func() {
-		maxRecordLen := 20
-		viper.Set("limits.record.max_number", maxRecordLen)
+		DBOptions := utils.ReadDbOptions()
+		DBOptions.MaxCount = 20
+
+		client, err := impl.Init(DBOptions)
+		if err != nil {
+			Fail(err.Error())
+		}
 
 		for i := 0; i < 30; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
@@ -215,12 +223,20 @@ var _ = Describe("Client", func() {
 
 		rdContent, err := redisInstance.Keys("*").Result()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(maxRecordLen).To(Equal(len(rdContent) - serviceFieldsCount))
+
+		resultingLen := int64(len(rdContent) - serviceFieldsCount)
+
+		Expect(DBOptions.MaxCount).To(Equal(resultingLen))
 	})
 
 	It("must evict records by size limit", func() {
-		sampleSize := 2000000
-		viper.Set("limits.max_size", sampleSize)
+		DBOptions := utils.ReadDbOptions()
+		DBOptions.MaxSize = 2000000
+
+		client, err := impl.Init(DBOptions)
+		if err != nil {
+			Fail(err.Error())
+		}
 
 		for i := 0; i <= itemsToInsert; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
@@ -242,7 +258,7 @@ var _ = Describe("Client", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		totalAlloc := res["total.allocated"].(int64)
-		maxAllowedAllocWithDelta := int64(sampleSize + 1000)
+		maxAllowedAllocWithDelta := int64(DBOptions.MaxSize)
 
 		Expect(maxAllowedAllocWithDelta > totalAlloc).To(BeTrue())
 	})

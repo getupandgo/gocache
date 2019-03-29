@@ -4,24 +4,32 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/getupandgo/gocache/common/utils"
+
 	"github.com/getupandgo/gocache/common/structs"
 	"github.com/go-redis/redis"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
 type RedisClient struct {
 	*redis.Client
+	options utils.DBOptions
 }
 
-func Init(connString string) (*RedisClient, error) {
+func Init(opts utils.DBOptions) (*RedisClient, error) {
 	rc := &RedisClient{}
 	rc.Client = redis.NewClient(&redis.Options{
-		Addr: connString,
+		Addr: opts.Connection,
 		DB:   0,
 	})
 
-	_, err := rc.Ping().Result()
+	rc.options = opts
+
+	err := rc.WatchExpiredRecords()
+	if err != nil {
+		return nil, err
+	}
+	_, err = rc.Ping().Result()
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +109,7 @@ func (db *RedisClient) Upsert(pg *structs.Page) (bool, error) {
 }
 
 func (db *RedisClient) Top() ([]structs.ScoredPage, error) {
-	topPagesNum := viper.GetInt64("cache.top_records_number")
+	topPagesNum := db.options.TopRecordsCount
 
 	topPages, err := db.ZRevRangeWithScores("hits", 0, topPagesNum-1).Result()
 	if err != nil {

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/spf13/viper"
+
 	"github.com/go-redis/redis"
 
 	"github.com/getupandgo/gocache/common/utils"
@@ -16,11 +18,14 @@ import (
 )
 
 type CacheController struct {
-	db cache.Page
+	db         cache.Page
+	defaultTTL string
 }
 
 func Init(cc cache.Page) *CacheController {
-	return &CacheController{cc}
+	defaultTTL := viper.GetString("limits.record.ttl")
+
+	return &CacheController{cc, defaultTTL}
 }
 
 func (ctrl *CacheController) GetPage(c *gin.Context) {
@@ -54,7 +59,7 @@ func (ctrl *CacheController) UpsertPage(c *gin.Context) {
 	var err error
 
 	if !present || reqTTL == "" {
-		pageTTL, err = utils.CalculateTTLFromNow()
+		pageTTL, err = utils.CalculateTTLFromNow(ctrl.defaultTTL)
 	} else {
 		pageTTL, err = strconv.ParseInt(reqTTL, 10, 64)
 	}

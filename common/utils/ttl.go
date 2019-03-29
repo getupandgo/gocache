@@ -2,12 +2,10 @@ package utils
 
 import (
 	"time"
-
-	"github.com/spf13/viper"
 )
 
-func CalculateTTLFromNow() (int64, error) {
-	defaultTTL, err := time.ParseDuration(viper.GetString("limits.record.ttl"))
+func CalculateTTLFromNow(ttl string) (int64, error) {
+	defaultTTL, err := time.ParseDuration(ttl)
 	if err != nil {
 		return 0, err
 	}

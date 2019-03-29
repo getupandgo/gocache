@@ -1,18 +1,17 @@
 limits:
   record:
     max_size: 20480000
-    max_number: 1000
     ttl: "2h"
+  max_count: 1000
   max_size: 20480000
 
 cache:
-  ttl_eviction_interval: "30m"
-  top_records_number: 100
+  expiration_interval: "1m"
+  top_records_count: 100
 
 redis:
   host: redis
   port: 6379
-  queueName: "pendingPages"
 
 server:
   port: 8000

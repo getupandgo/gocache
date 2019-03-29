@@ -7,7 +7,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
+	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
+
+	"github.com/getupandgo/gocache/common/structs"
+	"github.com/getupandgo/gocache/common/utils"
 
 	"github.com/getupandgo/gocache/mocks"
 	"github.com/getupandgo/gocache/server/controllers"
@@ -16,50 +24,92 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Pagecache", func() {
-	const testRequestSize int64 = 20480000
+const testPageUrl = "/example/test/controllers"
 
+var _ = Describe("Pagecache", func() {
 	var (
-		ctrl      *gomock.Controller
-		cacheMock *cache_mock.MockPage
+		ctrl       *gomock.Controller
+		cacheMock  *cache_mock.MockPage
+		samplePage structs.Page
+		testRouter *gin.Engine
 	)
 
 	BeforeEach(func() {
 		ctrl = gomock.NewController(GinkgoT())
 		cacheMock = cache_mock.NewMockPage(ctrl)
+
+		utils.ReadConfig("../../../../config")
+		defaultTTL := viper.GetString("limits.record.ttl")
+		maxReqSize := viper.GetInt64("limits.record.max_size")
+
+		testRouter = controllers.InitRouter(cacheMock, maxReqSize, defaultTTL)
+
+		var err error
+		samplePage, err = populateSamplePage(testPageUrl)
+		Expect(err).To(BeNil())
 	})
 
 	AfterEach(func() {
 		ctrl.Finish()
 	})
 
-	It("should retrieve page", func() {
+	It("should upsert new page", func() {
 		request, err := sampleMultipartReq("/cache/upsert")
 		Expect(err).To(BeNil())
 
 		response := httptest.NewRecorder()
 
-		cacheMock.EXPECT().Upsert(gomock.Any()).Return(true, nil)
+		cacheMock.EXPECT().Upsert(gomock.Any()).DoAndReturn(
+			func(pg *structs.Page) (bool, error) {
+				pageValue := *pg
 
-		controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+				if reflect.DeepEqual(pageValue, samplePage) {
+					return true, nil
+				} else {
+					Fail("Struct formed by controller is not equal to sample one")
+				}
+
+				return false, nil
+			})
+
+		testRouter.ServeHTTP(response, request)
 
 		Expect(response.Code).To(Equal(200))
 	})
 
-	It("should upsert new page", func() {
+	It("should retrieve page", func() {
 		values := url.Values{}
-		values.Add("url", "/example/test")
+		values.Add("url", testPageUrl)
 
-		request, _ := http.NewRequest("POST", "/cache/get", strings.NewReader(values.Encode()))
+		request, err := http.NewRequest("POST", "/cache/get", strings.NewReader(values.Encode()))
 		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		Expect(err).To(BeNil())
 
 		response := httptest.NewRecorder()
 
-		cacheMock.EXPECT().Get(gomock.Any()).Return([]byte{}, nil)
+		cacheMock.EXPECT().Get(gomock.Any()).DoAndReturn(
+			func(url string) ([]byte, error) {
+				if url == testPageUrl {
+					return samplePage.Content, nil
+				} else {
+					Fail("Struct formed by controller is not equal to sample one")
+				}
 
-		controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+				return nil, nil
+			})
+
+		testRouter.ServeHTTP(response, request)
+
+		responseBody, err := ioutil.ReadAll(response.Body)
+		Expect(err).To(BeNil())
+
+		responseString, err := strconv.Unquote(string(responseBody))
+		Expect(err).To(BeNil())
+
+		testContentString := string(samplePage.Content)
 
 		Expect(response.Code).To(Equal(200))
+		Expect(responseString).To(Equal(testContentString))
 	})
 
 	It("should return top pages", func() {
@@ -68,14 +118,14 @@ var _ = Describe("Pagecache", func() {
 
 		cacheMock.EXPECT().Top()
 
-		controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+		testRouter.ServeHTTP(response, request)
 
 		Expect(response.Code).To(Equal(200))
 	})
 
 	It("should delete page", func() {
 		values := url.Values{}
-		values.Add("url", "/example/test")
+		values.Add("url", testPageUrl)
 
 		request, _ := http.NewRequest("POST", "/cache/delete", strings.NewReader(values.Encode()))
 		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -84,7 +134,7 @@ var _ = Describe("Pagecache", func() {
 
 		cacheMock.EXPECT().Remove(gomock.Any()).Return(0, nil)
 
-		controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+		testRouter.ServeHTTP(response, request)
 
 		Expect(response.Code).To(Equal(200))
 	})
@@ -103,7 +153,7 @@ func sampleMultipartReq(uri string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = urlField.Write([]byte("/example/test"))
+	_, err = urlField.Write([]byte(testPageUrl))
 	if err != nil {
 		return nil, err
 	}
@@ -129,4 +179,22 @@ func sampleMultipartReq(uri string) (*http.Request, error) {
 	newReq.Header.Add("Content-Type", writer.FormDataContentType())
 
 	return newReq, nil
+}
+
+func populateSamplePage(url string) (structs.Page, error) {
+	unixTTL, err := utils.CalculateTTLFromNow("2h")
+
+	content, err := ioutil.ReadFile("../../../../mocks/Example Domain.html")
+	if err != nil {
+		return structs.Page{}, err
+	}
+
+	page := structs.Page{
+		URL:       url,
+		Content:   content,
+		TTL:       unixTTL,
+		TotalSize: len(url) + len(content),
+	}
+
+	return page, err
 }

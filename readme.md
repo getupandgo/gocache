@@ -8,7 +8,7 @@ Check out a [deployed app](http://34.65.220.116:8000/cache/top) or run locally v
 
 ### How to interact
 
-Sample requests to app are available in form of postman collection in `mocks` folder, you can just import them. Requests marked with `prod` are pointing on deployed app.
+Sample requests to app are available in form of postman collection in root folder, you can just import them. Requests marked with `prod` are pointing on deployed app.
 
 ### How to run tests
 

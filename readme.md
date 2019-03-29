@@ -1,23 +1,18 @@
-**Setup:**
+### Setup
 
-Check out a deployed app on 
+Check out a [deployed app](http://34.65.220.116:8000/cache/top) or run locally via
 
-http://34.65.220.116:8000/cache/top
-
-or run locally via
-
-`git clone`
+`git clone https://github.com/getupandgo/gocache.git`
 
 `make up`
 
+### How to interact
 
-**How to interact:**
+Sample requests to app are available in form of postman collection in `mocks` folder, you can just import them. Requests marked with `prod` are pointing on deployed app.
 
-Sample requests to `gocache` are avialible in form of postman collection in `mocks` folder
+### How to run tests
 
-**How to run tests:**
-
-Tests depend on docker (for populating dev-redis) and gomock. Commands below do all needed stuff and launching suite:
+Tests depend on `docker` (for populating local redis instance) and `gomock`. Commands below do all needed stuff and running test suite
 
 `make redis-dev`
 

@@ -5,8 +5,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const defaultConfigPath = "config"
-
 type DBOptions struct {
 	Connection         string
 	TopRecordsCount    int64
@@ -27,9 +25,9 @@ func ReadDbOptions() DBOptions {
 	}
 }
 
-func ReadConfig() {
+func ReadConfig(path string) {
 	viper.AutomaticEnv()
-	viper.AddConfigPath(defaultConfigPath)
+	viper.AddConfigPath(path)
 	viper.SetConfigName("default")
 	viper.SetConfigType("yaml")
 

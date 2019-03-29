@@ -11,8 +11,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+const defaultConfigPath = "config"
+
 func main() {
-	utils.ReadConfig()
+	utils.ReadConfig(defaultConfigPath)
 
 	rd, err := cache.Init(utils.ReadDbOptions())
 	if err != nil {

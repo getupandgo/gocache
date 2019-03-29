@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/spf13/viper"
-
 	"github.com/go-redis/redis"
 
 	"github.com/getupandgo/gocache/common/utils"
@@ -22,9 +20,7 @@ type CacheController struct {
 	defaultTTL string
 }
 
-func Init(cc cache.Page) *CacheController {
-	defaultTTL := viper.GetString("limits.record.ttl")
-
+func Init(cc cache.Page, defaultTTL string) *CacheController {
 	return &CacheController{cc, defaultTTL}
 }
 

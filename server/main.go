@@ -28,7 +28,9 @@ func main() {
 	}
 
 	maxReqSize := viper.GetInt64("limits.record.max_size")
-	r := controllers.InitRouter(rd, maxReqSize)
+	defaultTTL := viper.GetString("limits.record.ttl")
+
+	r := controllers.InitRouter(rd, maxReqSize, defaultTTL)
 
 	httpPort := viper.GetInt("server.port")
 

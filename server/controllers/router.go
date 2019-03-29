@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func InitRouter(cc cache.Page, maxRequestSize int64) *gin.Engine {
-	cacheCtrl := pagecache.Init(cc)
+func InitRouter(cc cache.Page, maxRequestSize int64, defaultTTL string) *gin.Engine {
+	cacheCtrl := pagecache.Init(cc, defaultTTL)
 
 	r := gin.New()
 

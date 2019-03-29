@@ -1,4 +1,4 @@
-package pagecache_test
+package test_test
 
 import (
 	"testing"

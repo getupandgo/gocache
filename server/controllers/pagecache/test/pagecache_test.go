@@ -1,4 +1,4 @@
-package pagecache_test
+package test_test
 
 import (
 	"bytes"
@@ -16,9 +16,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const testRequestSize int64 = 20480000
-
 var _ = Describe("Pagecache", func() {
+	const testRequestSize int64 = 20480000
+
 	var (
 		ctrl      *gomock.Controller
 		cacheMock *cache_mock.MockPage
@@ -91,7 +91,7 @@ var _ = Describe("Pagecache", func() {
 })
 
 func sampleMultipartReq(uri string) (*http.Request, error) {
-	content, err := ioutil.ReadFile("../../../mocks/Example Domain.html")
+	content, err := ioutil.ReadFile("../../../../mocks/Example Domain.html")
 	if err != nil {
 		return nil, err
 	}

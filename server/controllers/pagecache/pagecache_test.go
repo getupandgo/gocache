@@ -8,15 +8,87 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
-	"testing"
 
 	"github.com/getupandgo/gocache/mocks"
 	"github.com/getupandgo/gocache/server/controllers"
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-var testRequestSize int64 = 20480000
+const testRequestSize int64 = 20480000
+
+var _ = Describe("Pagecache", func() {
+	var (
+		ctrl      *gomock.Controller
+		cacheMock *cache_mock.MockPage
+	)
+
+	BeforeEach(func() {
+		ctrl = gomock.NewController(GinkgoT())
+		cacheMock = cache_mock.NewMockPage(ctrl)
+	})
+
+	AfterEach(func() {
+		ctrl.Finish()
+	})
+
+	It("should retrieve page", func() {
+		request, err := sampleMultipartReq("/cache/upsert")
+		Expect(err).To(BeNil())
+
+		response := httptest.NewRecorder()
+
+		cacheMock.EXPECT().Upsert(gomock.Any()).Return(true, nil)
+
+		controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(200))
+	})
+
+	It("should upsert new page", func() {
+		values := url.Values{}
+		values.Add("url", "/example/test")
+
+		request, _ := http.NewRequest("POST", "/cache/get", strings.NewReader(values.Encode()))
+		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+		response := httptest.NewRecorder()
+
+		cacheMock.EXPECT().Get(gomock.Any()).Return([]byte{}, nil)
+
+		controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(200))
+	})
+
+	It("should return top pages", func() {
+		request, _ := http.NewRequest("GET", "/cache/top", nil)
+		response := httptest.NewRecorder()
+
+		cacheMock.EXPECT().Top()
+
+		controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(200))
+	})
+
+	It("should delete page", func() {
+		values := url.Values{}
+		values.Add("url", "/example/test")
+
+		request, _ := http.NewRequest("POST", "/cache/delete", strings.NewReader(values.Encode()))
+		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+		response := httptest.NewRecorder()
+
+		cacheMock.EXPECT().Remove(gomock.Any()).Return(0, nil)
+
+		controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
+
+		Expect(response.Code).To(Equal(200))
+	})
+})
 
 func sampleMultipartReq(uri string) (*http.Request, error) {
 	content, err := ioutil.ReadFile("../../../mocks/Example Domain.html")
@@ -57,78 +129,4 @@ func sampleMultipartReq(uri string) (*http.Request, error) {
 	newReq.Header.Add("Content-Type", writer.FormDataContentType())
 
 	return newReq, nil
-}
-
-func TestPageUpsert(t *testing.T) {
-	request, err := sampleMultipartReq("/cache/upsert")
-	if err != nil {
-		assert.Fail(t, err.Error())
-	}
-
-	response := httptest.NewRecorder()
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	cacheMock := cache_mock.NewMockPage(ctrl)
-	cacheMock.EXPECT().Upsert(gomock.Any()).Return(true, nil)
-
-	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
-
-	assert.Equal(t, 200, response.Code, "Ok is expected")
-}
-
-func TestPageRetrieval(t *testing.T) {
-	values := url.Values{}
-	values.Add("url", "/example/test")
-
-	request, _ := http.NewRequest("POST", "/cache/get", strings.NewReader(values.Encode()))
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	response := httptest.NewRecorder()
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	cacheMock := cache_mock.NewMockPage(ctrl)
-	cacheMock.EXPECT().Get(gomock.Any()).Return([]byte{}, nil)
-
-	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
-
-	assert.Equal(t, 200, response.Code, "Ok is expected")
-}
-
-func TestTopPagesRetrieval(t *testing.T) {
-	request, _ := http.NewRequest("GET", "/cache/top", nil)
-	response := httptest.NewRecorder()
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	cacheMock := cache_mock.NewMockPage(ctrl)
-	cacheMock.EXPECT().Top()
-
-	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
-
-	assert.Equal(t, 200, response.Code, "Ok is expected")
-}
-
-func TestPageDeletion(t *testing.T) {
-	values := url.Values{}
-	values.Add("url", "/example/test")
-
-	request, _ := http.NewRequest("POST", "/cache/delete", strings.NewReader(values.Encode()))
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	response := httptest.NewRecorder()
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	cacheMock := cache_mock.NewMockPage(ctrl)
-	cacheMock.EXPECT().Remove(gomock.Any()).Return(0, nil)
-
-	controllers.InitRouter(cacheMock, testRequestSize).ServeHTTP(response, request)
-
-	assert.Equal(t, 200, response.Code, "Ok is expected")
 }

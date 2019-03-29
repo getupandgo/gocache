@@ -14,58 +14,24 @@ import (
 	"github.com/go-redis/redis"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/rs/zerolog/log"
 )
 
-const (
-	serviceFieldsCount = 2 // "ttl" and "hits" records in sorted set
-	itemsToInsert      = 100
-	redisDevConn       = "0.0.0.0:32769"
-	testPageURL        = "/test/1"
-)
-
-var (
-	redisInstance *redis.Client
-	client        cache.Page
-
-	samplePageContent = []byte(`<div>
-    <h1>Example Domain</h1>
-    <p>This domain is established to be used for illustrative examples in documents. You may use this
-    domain in examples without prior coordination or asking for permission.</p>
-    <p><a href="http://www.iana.org/domains/example">More information...</a></p>
-	</div>`)
-)
-
-func ReadConfig() {
-	viper.AutomaticEnv()
-	viper.AddConfigPath("../../../../config")
-	viper.SetConfigName("default")
-	viper.SetConfigType("yaml")
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Failed to get config file")
-	}
-}
-
-func populateSamplePage(url string) (structs.Page, error) {
-	defaultTTL := viper.GetString("limits.record.ttl")
-	unixTTL, err := utils.CalculateTTLFromNow(defaultTTL)
-
-	page := structs.Page{
-		URL:       url,
-		Content:   samplePageContent,
-		TTL:       unixTTL,
-		TotalSize: len(samplePageContent),
-	}
-
-	return page, err
-}
+const serviceFieldsCount = 2 // "ttl" and "hits" records in sorted set
 
 var _ = Describe("Client", func() {
+	const (
+		itemsToInsert = 100
+		redisDevConn  = "0.0.0.0:32769"
+		testPageURL   = "/test/1"
+	)
+
+	var (
+		redisInstance *redis.Client
+		client        cache.Page
+	)
+
 	BeforeEach(func() {
-		ReadConfig()
+		utils.ReadConfig("../../../config")
 
 		DBOptions := utils.ReadDbOptions()
 		DBOptions.Connection = redisDevConn
@@ -268,6 +234,27 @@ var _ = Describe("Client", func() {
 	})
 
 })
+
+var samplePageContent = []byte(`<div>
+    <h1>Example Domain</h1>
+    <p>This domain is established to be used for illustrative examples in documents. You may use this
+    domain in examples without prior coordination or asking for permission.</p>
+    <p><a href="http://www.iana.org/domains/example">More information...</a></p>
+	</div>`)
+
+func populateSamplePage(url string) (structs.Page, error) {
+	defaultTTL := viper.GetString("limits.record.ttl")
+	unixTTL, err := utils.CalculateTTLFromNow(defaultTTL)
+
+	page := structs.Page{
+		URL:       url,
+		Content:   samplePageContent,
+		TTL:       unixTTL,
+		TotalSize: len(samplePageContent),
+	}
+
+	return page, err
+}
 
 func resToMap(res interface{}) (map[string]interface{}, error) {
 	resSlice, ok := res.([]interface{})

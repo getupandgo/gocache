@@ -14,6 +14,6 @@ Sample requests to app are available in form of postman collection in root folde
 
 Tests depend on `docker` (for populating local redis instance) and `gomock`. Commands below do all needed stuff and running test suite
 
-`make redis-dev`
+`make redis-test`
 
 `make test`

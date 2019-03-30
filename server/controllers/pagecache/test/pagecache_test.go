@@ -1,9 +1,7 @@
 package test_test
 
 import (
-	"bytes"
 	"io/ioutil"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,13 +9,16 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/getupandgo/gocache/mocks/test_data"
+
+	"github.com/getupandgo/gocache/mocks/db"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 
 	"github.com/getupandgo/gocache/common/structs"
 	"github.com/getupandgo/gocache/common/utils"
 
-	"github.com/getupandgo/gocache/mocks"
 	"github.com/getupandgo/gocache/server/controllers"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -45,7 +46,7 @@ var _ = Describe("Pagecache", func() {
 		testRouter = controllers.InitRouter(cacheMock, maxReqSize, defaultTTL)
 
 		var err error
-		samplePage, err = populateSamplePage(testPageUrl)
+		samplePage, err = test_data.PopulatePage(testPageUrl, defaultTTL)
 		Expect(err).To(BeNil())
 	})
 
@@ -54,7 +55,7 @@ var _ = Describe("Pagecache", func() {
 	})
 
 	It("should upsert new page", func() {
-		request, err := sampleMultipartReq("/cache/upsert")
+		request, err := test_data.PopulateUpsertReq("/cache/upsert", testPageUrl)
 		Expect(err).To(BeNil())
 
 		response := httptest.NewRecorder()
@@ -139,62 +140,3 @@ var _ = Describe("Pagecache", func() {
 		Expect(response.Code).To(Equal(200))
 	})
 })
-
-func sampleMultipartReq(uri string) (*http.Request, error) {
-	content, err := ioutil.ReadFile("../../../../mocks/Example Domain.html")
-	if err != nil {
-		return nil, err
-	}
-
-	body := new(bytes.Buffer)
-	writer := multipart.NewWriter(body)
-
-	urlField, err := writer.CreateFormField("url")
-	if err != nil {
-		return nil, err
-	}
-	_, err = urlField.Write([]byte(testPageUrl))
-	if err != nil {
-		return nil, err
-	}
-
-	part, err := writer.CreateFormFile("content", "example_file_name")
-	if err != nil {
-		return nil, err
-	}
-	_, err = part.Write(content)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = writer.Close(); err != nil {
-		return nil, err
-	}
-
-	newReq, err := http.NewRequest("PUT", uri, body)
-	if err != nil {
-		return nil, err
-	}
-
-	newReq.Header.Add("Content-Type", writer.FormDataContentType())
-
-	return newReq, nil
-}
-
-func populateSamplePage(url string) (structs.Page, error) {
-	unixTTL, err := utils.CalculateTTLFromNow("2h")
-
-	content, err := ioutil.ReadFile("../../../../mocks/Example Domain.html")
-	if err != nil {
-		return structs.Page{}, err
-	}
-
-	page := structs.Page{
-		URL:       url,
-		Content:   content,
-		TTL:       unixTTL,
-		TotalSize: len(url) + len(content),
-	}
-
-	return page, err
-}

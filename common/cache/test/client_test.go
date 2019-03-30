@@ -4,13 +4,14 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/getupandgo/gocache/mocks/test_data"
+
 	"github.com/getupandgo/gocache/common/utils"
 
 	"github.com/spf13/viper"
 
 	"github.com/getupandgo/gocache/common/cache"
 	"github.com/getupandgo/gocache/common/cache/impl"
-	"github.com/getupandgo/gocache/common/structs"
 	"github.com/go-redis/redis"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -28,10 +29,13 @@ var _ = Describe("Client", func() {
 	var (
 		redisInstance *redis.Client
 		client        cache.Page
+
+		defaultTTL string
 	)
 
 	BeforeEach(func() {
 		utils.ReadConfig("../../../config")
+		defaultTTL = viper.GetString("limits.record.ttl")
 
 		DBOptions := utils.ReadDbOptions()
 		DBOptions.Connection = redisDevConn
@@ -53,22 +57,22 @@ var _ = Describe("Client", func() {
 	})
 
 	It("must insert page to cache", func() {
-		samplePage, err := populateSamplePage(testPageURL)
+		samplePage, err := test_data.PopulatePage(testPageURL, defaultTTL)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, err = client.Upsert(&samplePage)
 		Expect(err).NotTo(HaveOccurred())
 
-		rdContent, err := redisInstance.HGet(testPageURL, "content").Result()
+		dbContent, err := redisInstance.HGet(testPageURL, "content").Result()
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(string(samplePageContent)).To(Equal(rdContent))
+		Expect(string(samplePage.Content)).To(Equal(dbContent))
 	})
 
 	It("must insert N pages", func() {
 		for i := 0; i < itemsToInsert; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
-			samplePage, err := populateSamplePage("/test/ins/" + strIdx)
+			samplePage, err := test_data.PopulatePage("/test/ins/"+strIdx, defaultTTL)
 			if err != nil {
 				Fail(err.Error())
 			}
@@ -86,7 +90,7 @@ var _ = Describe("Client", func() {
 	})
 
 	It("must return page content", func() {
-		samplePage, err := populateSamplePage(testPageURL)
+		samplePage, err := test_data.PopulatePage(testPageURL, defaultTTL)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, err = client.Upsert(&samplePage)
@@ -94,23 +98,23 @@ var _ = Describe("Client", func() {
 
 		pContent, err := client.Get(testPageURL)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(pContent).To(Equal(samplePageContent))
+		Expect(pContent).To(Equal(samplePage.Content))
 
 		rdContent, err := redisInstance.HGet(testPageURL, "content").Result()
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(string(samplePageContent)).To(Equal(rdContent))
+		Expect(string(samplePage.Content)).To(Equal(rdContent))
 	})
 
 	It("must expire items with zero ttl", func() {
 		for i := 0; i < 100; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
-			_, err := client.Upsert(&structs.Page{
-				URL:       "/test/ttl/" + strIdx,
-				Content:   samplePageContent,
-				TTL:       0,
-				TotalSize: len(samplePageContent)})
 
+			samplePage, err := test_data.PopulatePage("/test/ttl/"+strIdx, "0")
+			if err != nil {
+				Fail(err.Error())
+			}
+			_, err = client.Upsert(&samplePage)
 			if err != nil {
 				Fail(err.Error())
 			}
@@ -128,7 +132,7 @@ var _ = Describe("Client", func() {
 	It("must return top pages", func() {
 		for i := 0; i < itemsToInsert; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
-			samplePage, err := populateSamplePage("/test/top/" + strIdx)
+			samplePage, err := test_data.PopulatePage("/test/top/"+strIdx, defaultTTL)
 			if err != nil {
 				Fail(err.Error())
 			}
@@ -142,7 +146,10 @@ var _ = Describe("Client", func() {
 		topItemsNum := viper.GetInt("cache.top_records_count")
 		for i := 0; i < topItemsNum; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
-			_, _ = client.Get("/test/top/" + strIdx)
+			_, err := client.Get("/test/top/" + strIdx)
+			if err != nil {
+				Fail(err.Error())
+			}
 		}
 
 		topPages, err := client.Top()
@@ -153,7 +160,7 @@ var _ = Describe("Client", func() {
 	})
 
 	It("must delete page from cache", func() {
-		samplePage, err := populateSamplePage(testPageURL)
+		samplePage, err := test_data.PopulatePage(testPageURL, defaultTTL)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, err = client.Upsert(&samplePage)
@@ -179,7 +186,7 @@ var _ = Describe("Client", func() {
 
 		for i := 0; i < 30; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
-			samplePage, err := populateSamplePage("/test/len/" + strIdx)
+			samplePage, err := test_data.PopulatePage("/test/len/"+strIdx, defaultTTL)
 			if err != nil {
 				Fail(err.Error())
 			}
@@ -210,7 +217,7 @@ var _ = Describe("Client", func() {
 
 		for i := 0; i <= itemsToInsert; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)
-			samplePage, err := populateSamplePage("/test/size/" + strIdx)
+			samplePage, err := test_data.PopulatePage("/test/size/"+strIdx, defaultTTL)
 			if err != nil {
 				Fail(err.Error())
 			}
@@ -234,27 +241,6 @@ var _ = Describe("Client", func() {
 	})
 
 })
-
-var samplePageContent = []byte(`<div>
-    <h1>Example Domain</h1>
-    <p>This domain is established to be used for illustrative examples in documents. You may use this
-    domain in examples without prior coordination or asking for permission.</p>
-    <p><a href="http://www.iana.org/domains/example">More information...</a></p>
-	</div>`)
-
-func populateSamplePage(url string) (structs.Page, error) {
-	defaultTTL := viper.GetString("limits.record.ttl")
-	unixTTL, err := utils.CalculateTTLFromNow(defaultTTL)
-
-	page := structs.Page{
-		URL:       url,
-		Content:   samplePageContent,
-		TTL:       unixTTL,
-		TotalSize: len(samplePageContent),
-	}
-
-	return page, err
-}
 
 func resToMap(res interface{}) (map[string]interface{}, error) {
 	resSlice, ok := res.([]interface{})

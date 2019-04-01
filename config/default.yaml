@@ -6,7 +6,7 @@ limits:
   max_size: 20480000
 
 cache:
-  expiration_interval: "1m"
+  expiration_interval: "30m"
   top_records_count: 100
 
 redis:

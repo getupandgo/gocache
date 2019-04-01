@@ -39,24 +39,66 @@ func Init(opts utils.DBOptions) (*RedisClient, error) {
 }
 
 func (db *RedisClient) Get(url string) ([]byte, error) {
-	pipe := db.TxPipeline()
+	var getCommand *redis.StringCmd
+	var getPage func(string) error
 
-	pipe.ZIncr("hits", redis.Z{
-		Score:  1,
-		Member: url,
-	})
+	getPage = func(url string) error {
+		getTx := func(tx *redis.Tx) error {
+			recordExpired, err := db.isExpired(url)
+			if err != nil {
+				return err
+			}
 
-	content, err := db.HGet(url, "content").Bytes()
+			if recordExpired {
+				_, err := db.Remove(url)
+				if err != nil {
+					return err
+				}
+			} else {
+				_, err = tx.Pipelined(
+					func(pipe redis.Pipeliner) error {
+						pipe.ZIncr("hits", redis.Z{
+							Score:  1,
+							Member: url,
+						})
+
+						getCommand = db.HGet(url, "content")
+
+						return nil
+					})
+			}
+
+			return err
+		}
+
+		err := db.Watch(getTx, url)
+
+		if err == redis.TxFailedErr {
+			log.Warn().
+				Err(err).
+				Msg("Failed to insert page with url " + url + ", retry")
+
+			return getPage(url)
+		}
+
+		return err
+	}
+
+	err := getPage(url)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = pipe.Exec()
+	if getCommand == nil {
+		return nil, nil
+	}
+
+	pageContent, err := getCommand.Bytes()
 	if err != nil {
 		return nil, err
 	}
 
-	return content, nil
+	return pageContent, nil
 }
 
 func (db *RedisClient) Upsert(pg *structs.Page) (bool, error) {

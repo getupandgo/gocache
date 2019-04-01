@@ -106,6 +106,22 @@ var _ = Describe("Client", func() {
 		Expect(string(samplePage.Content)).To(Equal(rdContent))
 	})
 
+	It("must not return expired page content", func() {
+		samplePage, err := test_data.PopulatePage(testPageURL, "-1000")
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = client.Upsert(&samplePage)
+		Expect(err).NotTo(HaveOccurred())
+
+		pContent, err := client.Get(testPageURL)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pContent).To(BeNil())
+
+		rdContent, err := redisInstance.HGet(testPageURL, "content").Result()
+		Expect(err).To(Equal(redis.Nil))
+		Expect(rdContent).To(BeEmpty())
+	})
+
 	It("must expire items with zero ttl", func() {
 		for i := 0; i < 100; i++ {
 			strIdx := strconv.FormatInt(int64(i), 10)

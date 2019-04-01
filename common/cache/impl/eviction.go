@@ -3,6 +3,8 @@ package impl
 import (
 	"time"
 
+	"github.com/getupandgo/gocache/common/utils"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -145,4 +147,18 @@ func (db *RedisClient) WatchExpiredRecords() error {
 	}()
 
 	return nil
+}
+
+func (db *RedisClient) isExpired(url string) (bool, error) {
+	recordTTL, err := db.ZScore("ttl", url).Result()
+	if err != nil {
+		return false, err
+	}
+
+	timeNow, err := utils.CalculateTTLFromNow("0")
+	if err != nil {
+		return false, err
+	}
+
+	return int64(recordTTL) < timeNow, nil
 }
